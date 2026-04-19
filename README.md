@@ -1,4 +1,4 @@
-# Pulse CLI
+# Agent Pulse
 
 **Multi-Agent Collaboration CLI — flock-based coordination, event-driven workflow, zero overhead.**
 
@@ -22,14 +22,14 @@ Pulse is a command-line tool that coordinates multiple AI agents working on a sh
 ## Installation
 
 ```bash
-pip install pulse-cli
+pip install mai-cli
 ```
 
 Or install from source:
 
 ```bash
-git clone https://github.com/yourname/pulse-cli.git
-cd pulse-cli
+git clone https://github.com/yourname/mai-cli.git
+cd mai-cli
 pip install -e .
 ```
 
