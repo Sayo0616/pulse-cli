@@ -1,4 +1,4 @@
-# Contributing to Pulse CLI
+# Contributing to Mai CLI
 
 Thank you for your interest in contributing!
 

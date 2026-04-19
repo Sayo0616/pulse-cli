@@ -1,4 +1,4 @@
-# Pulse CLI — Developer Guide
+# Mai CLI — Developer Guide
 
 *(Placeholder — expand with architecture notes, testing strategy, and module map.)*
 
@@ -6,9 +6,9 @@
 
 | Module | Responsibility |
 |:---|:---|
-| `pulse.py` | Entry point: argparse, dispatch, output helpers |
+| `mai.py` | Entry point: argparse, dispatch, output helpers |
 | `config.py` | Defaults, GlobalArgs, config accessors |
-| `sync.py` | `.pulse/` → `async/` mirror |
+| `sync.py` | `.mai/` → `async/` mirror |
 | `issue.py` | Issue lifecycle (new/amend/claim/complete/escalate) |
 | `issue_list.py` | Issue queries (list/show) |
 | `queue.py` | Queue check and blockers |
@@ -30,9 +30,9 @@ pytest tests/ -v
 ## Adding a New Command
 
 1. Add the command function to the appropriate module (or create a new one)
-2. Add the argparse subparser in `pulse.py`'s `build_parser()`
+2. Add the argparse subparser in `mai.py`'s `build_parser()`
 3. Add a `dispatch_<group>()` case in `dispatch()` and implement it
-4. Add a test in `tests/test_pulse.py`
+4. Add a test in `tests/test_mai.py`
 
 ## Code Style
 

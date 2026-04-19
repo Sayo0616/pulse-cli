@@ -1,8 +1,8 @@
-# Agent Pulse
+# Mai CLI
 
 **Multi-Agent Collaboration CLI — flock-based coordination, event-driven workflow, zero overhead.**
 
-Pulse is a command-line tool that coordinates multiple AI agents working on a shared project. It provides atomic locking, queue-based issue routing, per-agent heartbeat timeouts, and an automated daily summary loop — all backed by a simple file-based store.
+Mai is a command-line tool that coordinates multiple AI agents working on a shared project. It provides atomic locking, queue-based issue routing, per-agent heartbeat timeouts, and an automated daily summary loop — all backed by a simple file-based store.
 
 ---
 
@@ -12,7 +12,7 @@ Pulse is a command-line tool that coordinates multiple AI agents working on a sh
 - **Queue-based routing** — issues route to the right agent with configurable SLA per queue
 - **Heartbeat-aware guardian** — stale locks auto-release after `heartbeat × 1.5` minutes
 - **Event-driven daily summary** — ordered turn-taking with idempotent trigger/collect
-- **Async mirror** — `.pulse/` internal store syncs to `async/` for human visibility
+- **Async mirror** — `.mai/` internal store syncs to `async/` for human visibility
 - **Configurable via JSON** — all rules externalized to `config.json`; no code changes needed
 - **Dual output format** — `--format json` for machine consumption, text for humans
 - **Dry-run mode** — `--dry-run` previews every mutation without side effects
@@ -40,31 +40,31 @@ pip install -e .
 **Step 1 — Initialize a project**
 
 ```bash
-pulse project init MyProject
+mai project init MyProject
 ```
 
 **Step 2 — Create an issue**
 
 ```bash
-pulse --project MyProject issue new programmer-questions "How should we handle input buffering?"
+mai --project MyProject issue new programmer-questions "How should we handle input buffering?"
 ```
 
 **Step 3 — Have the assigned agent claim it**
 
 ```bash
-pulse --project MyProject issue claim REQ-001
+mai --project MyProject issue claim REQ-001
 ```
 
 **Step 4 — Mark it done**
 
 ```bash
-pulse --project MyProject issue complete REQ-001 "Decision: ring buffer, 60Hz polling"
+mai --project MyProject issue complete REQ-001 "Decision: ring buffer, 60Hz polling"
 ```
 
 **Step 5 — Inspect queues**
 
 ```bash
-pulse --project MyProject queue check
+mai --project MyProject queue check
 ```
 
 ---
@@ -72,7 +72,7 @@ pulse --project MyProject queue check
 ## Architecture
 
 ```
-.pulse/                        async/
+.mai/                        async/
 ├── queues/<queue>/  Issue files  <queue>/  Human-visible mirror
 ├── locks/           flock files  (internal only)
 ├── processing/      Active issues  <queue>/
@@ -82,7 +82,7 @@ pulse --project MyProject queue check
 └── config.json      All collaboration rules
 ```
 
-**Lock protocol**: When an agent claims an issue, Pulse acquires an `flock(2)`-based file lock. The lock expires after `heartbeat × 1.5` minutes if the agent fails to heartbeat. The `lock guardian` cron command automatically releases stale locks.
+**Lock protocol**: When an agent claims an issue, Mai acquires an `flock(2)`-based file lock. The lock expires after `heartbeat × 1.5` minutes if the agent fails to heartbeat. The `lock guardian` cron command automatically releases stale locks.
 
 **Daily summary flow**: `trigger` → each agent `write` in order → `collect` merges all summaries into a single report.
 
@@ -92,62 +92,62 @@ pulse --project MyProject queue check
 
 ### Issue
 ```
-pulse issue new <queue> <title> [--ref REQ-XXX]
-pulse issue amend <issue-id> <remark>
-pulse issue claim <issue-id>
-pulse issue complete <issue-id> <conclusion>
-pulse issue list [queue]
-pulse issue show <issue-id>
-pulse issue escalate <issue-id>
+mai issue new <queue> <title> [--ref REQ-XXX]
+mai issue amend <issue-id> <remark>
+mai issue claim <issue-id>
+mai issue complete <issue-id> <conclusion>
+mai issue list [queue]
+mai issue show <issue-id>
+mai issue escalate <issue-id>
 ```
 
 ### Queue
 ```
-pulse queue check [queue] [--overdue]
-pulse queue blockers
+mai queue check [queue] [--overdue]
+mai queue blockers
 ```
 
 ### Lock
 ```
-pulse lock check <issue-id>
-pulse lock force-release <issue-id>
-pulse lock guardian
+mai lock check <issue-id>
+mai lock force-release <issue-id>
+mai lock guardian
 ```
 
 ### Log
 ```
-pulse log history [--date YYYY-MM-DD] [--agent NAME]
-pulse log write <agent> <type> <summary> [status]
+mai log history [--date YYYY-MM-DD] [--agent NAME]
+mai log write <agent> <type> <summary> [status]
 ```
 
 ### Daily Summary
 ```
-pulse daily-summary trigger
-pulse daily-summary write <agent> <content...>
-pulse daily-summary collect
+mai daily-summary trigger
+mai daily-summary write <agent> <content...>
+mai daily-summary collect
 ```
 
 ### Escalation
 ```
-pulse escalation gen <issue-id>
+mai escalation gen <issue-id>
 ```
 
 ### Bitable
 ```
-pulse bitable sync-status
-pulse bitable retry
+mai bitable sync-status
+mai bitable retry
 ```
 
 ### Project
 ```
-pulse project init <project-name>
+mai project init <project-name>
 ```
 
 ---
 
 ## Configuration
 
-Edit `.pulse/config.json` in your project root:
+Edit `.mai/config.json` in your project root:
 
 ```json
 {
