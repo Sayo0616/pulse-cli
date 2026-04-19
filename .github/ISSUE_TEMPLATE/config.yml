@@ -1,0 +1,9 @@
+---
+name: Default Issue
+about: For anything not covered by other templates
+title: ""
+labels: ''
+assignees: ''
+
+blank:
+  enabled: true
