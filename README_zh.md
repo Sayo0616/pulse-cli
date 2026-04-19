@@ -150,16 +150,15 @@ mai [--project <项目名>] [--format json|text] [--dry-run] <子命令>
 
 | 命令 | 说明 |
 |:---|:---|
-| `mai daily-summary trigger` | Cron 调用：触发每日汇总事件 |
-| `mai daily-summary write <agent> <内容>` | 各 Agent 顺序写入摘要 |
-| `mai daily-summary collect` | designer 生成最终报告 |
+| `mai daily-summary trigger` | 触发每日汇报事件（若上轮未结束则报错） |
+| `mai daily-summary write <agent> <内容>` | 写入日报（最后一个 Agent 提交后自动结束） |
+| `mai daily-summary read [<agent>|.|--all]` | 读取日报、查看进度或生成汇总报告 |
 
 ### 其他
 
 | 命令 | 说明 |
 |:---|:---|
 | `mai escalation gen <issue-id>` | 生成冲突升级模板 |
-| `mai bitable sync-status` | 查看 Bitable 同步状态 |
 | `mai exec safe-check <cmd>` | 检查命令是否危险 |
 | `mai project init <name>` | 初始化项目 |
 
@@ -255,4 +254,4 @@ MIT License — 详见 [LICENSE](./LICENSE)
 
 ---
 
-*Mai CLI v1.1 — 配置外部化版本*
+*Mai CLI v1.2 — 流程重构版本*

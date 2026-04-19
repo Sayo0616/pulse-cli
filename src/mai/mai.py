@@ -144,20 +144,16 @@ def build_parser():
     ds_sp = sub.add_parser("daily-summary")
     ds = ds_sp.add_subparsers(dest="ds_cmd", required=True)
     ds.add_parser("trigger")
+    p = ds.add_parser("read")
+    p.add_argument("target", nargs="?", default=".") # <agent> / .
+    p.add_argument("--all", dest="read_all", action="store_true")
     p = ds.add_parser("write")
     p.add_argument("agent"); p.add_argument("content", nargs="+", default=[])
-    ds.add_parser("collect")
 
     # ── escalation ──
     esc_sp = sub.add_parser("escalation")
     esc = esc_sp.add_subparsers(dest="esc_cmd", required=True)
     p = esc.add_parser("gen"); p.add_argument("issue_id")
-
-    # ── bitable ──
-    bit_sp = sub.add_parser("bitable")
-    bt = bit_sp.add_subparsers(dest="bit_cmd", required=True)
-    bt.add_parser("sync-status")
-    bt.add_parser("retry")
 
     # ── exec ──
     exec_sp = sub.add_parser("exec")
@@ -187,10 +183,9 @@ def dispatch(args):
     from .lock import cmd_lock_check, cmd_lock_force_release, cmd_lock_guardian
     from .log import cmd_log_history, cmd_log_write
     from .daily_summary import (
-        daily_summary_trigger, daily_summary_write, daily_summary_collect,
+        daily_summary_trigger, daily_summary_write, daily_summary_read,
     )
     from .escalation import cmd_escalation_gen
-    from .bitable import bitable_sync_status, bitable_retry
     from .safe_exec import exec_safe_check
     from .project import cmd_project_init
 
@@ -218,8 +213,6 @@ def dispatch(args):
             dispatch_daily_summary(args, project_root)
         elif args.subcommand == "escalation":
             dispatch_escalation(args, project_root)
-        elif args.subcommand == "bitable":
-            dispatch_bitable(args, project_root)
         elif args.subcommand == "exec":
             dispatch_exec(args, project_root)
         elif args.subcommand == "project":
@@ -278,29 +271,21 @@ def dispatch_log(args, project_root):
 
 def dispatch_daily_summary(args, project_root):
     from .daily_summary import (
-        daily_summary_trigger, daily_summary_write, daily_summary_collect,
+        daily_summary_trigger, daily_summary_write, daily_summary_read,
     )
     if args.ds_cmd == "trigger":
         daily_summary_trigger(project_root)
     elif args.ds_cmd == "write":
         content = " ".join(args.content) if args.content else ""
         daily_summary_write(project_root, args.agent, content)
-    elif args.ds_cmd == "collect":
-        daily_summary_collect(project_root)
+    elif args.ds_cmd == "read":
+        daily_summary_read(project_root, args.target, args.read_all)
 
 
 def dispatch_escalation(args, project_root):
     from .escalation import cmd_escalation_gen
     if args.esc_cmd == "gen":
         cmd_escalation_gen(project_root, args.issue_id)
-
-
-def dispatch_bitable(args, project_root):
-    from .bitable import bitable_sync_status, bitable_retry
-    if args.bit_cmd == "sync-status":
-        bitable_sync_status(project_root)
-    elif args.bit_cmd == "retry":
-        bitable_retry(project_root)
 
 
 def dispatch_exec(args, project_root):

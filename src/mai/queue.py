@@ -6,7 +6,7 @@ v1.1.0
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
-from .config import get_queue_sla, get_status_emoji, get_mai_dir
+from .config import get_queue_sla, get_status_emoji, get_mai_dir, get_blockers_queue
 from .issue_list import list_issues_in_queue
 
 
@@ -49,15 +49,21 @@ def cmd_queue_check(project_root: Path, queue: Optional[str], overdue: bool):
 
 
 def cmd_queue_blockers(project_root: Path):
-    from .mai import out, out_json, ensure_mai_structure, GLOBAL
+    from .mai import out, err, out_json, ensure_mai_structure, GLOBAL
     ensure_mai_structure(project_root)
-    blockers = list_issues_in_queue(project_root, "designer-blockers")
+    
+    q = get_blockers_queue(project_root)
+    queue_sla = get_queue_sla(project_root)
+    if q not in queue_sla:
+        err(f"Blocker queue '{q}' not configured in config.json", 1, error="INVALID_CONFIG")
+
+    blockers = list_issues_in_queue(project_root, q)
     status_emoji = get_status_emoji(project_root)
 
     if GLOBAL.format == "json":
         out_json({"ok": True, "command": "queue blockers", "blockers": blockers})
     else:
-        out(f"\n## Designer Blockers ({len(blockers)} issues)")
+        out(f"\n## {q.replace('-', ' ').title()} ({len(blockers)} issues)")
         for iss in blockers:
             emoji = status_emoji.get(iss["status"], "")
             out(f"  [{iss['id']}] {emoji} {iss['title']}")

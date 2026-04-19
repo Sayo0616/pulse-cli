@@ -124,18 +124,12 @@ mai log write <agent> <type> <summary> [status]
 ```
 mai daily-summary trigger
 mai daily-summary write <agent> <content...>
-mai daily-summary collect
+mai daily-summary read [<agent>|.|--all]
 ```
 
 ### Escalation
 ```
 mai escalation gen <issue-id>
-```
-
-### Bitable
-```
-mai bitable sync-status
-mai bitable retry
 ```
 
 ### Project
