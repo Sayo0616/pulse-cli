@@ -1,4 +1,4 @@
-# Pulse CLI
+# Pulse CLI 脉
 
 > 多 Agent 协作指令系统 — 标准化团队工作台
 
