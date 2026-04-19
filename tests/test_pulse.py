@@ -100,8 +100,8 @@ def test_parse_issue_file():
         f = Path(tmpdir) / "REQ-001.md"
         f.write_text(
             "# [REQ-001] Test\n\n"
-            "**发起方：** @programmer\n"
-            "**处理方：** @programmer\n"
+            "**发起方：** programmer\n"
+            "**处理方：** programmer\n"
             "**创建时间：** 2026-04-19T10:00:00\n"
             "**状态：** 🔓 open\n"
             "**队列：** programmer-questions\n\n"
