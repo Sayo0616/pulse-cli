@@ -12,7 +12,7 @@ from typing import Dict, Any, List, Optional
 # Default Configuration (Fallbacks)
 # ─────────────────────────────────────────────
 
-DEFAULT_QUEUES = {
+LEGACY_QUEUES = {
     "programmer-questions":       {"handler": "designer",      "sla_minutes": 120,  "id_prefix": "REQ"},
     "architect-decisions":        {"handler": "architect",     "sla_minutes": 120,  "id_prefix": "REQ"},
     "techartist-reviews":        {"handler": "designer",      "sla_minutes": 240,  "id_prefix": "REQ"},
@@ -22,15 +22,20 @@ DEFAULT_QUEUES = {
     "designer-blockers":         {"handler": "designer",      "sla_minutes": None, "id_prefix": "BLK"},
 }
 
-DEFAULT_AGENTS = {
-    "programmer":  {"heartbeat_minutes": 17},
-    "designer":    {"heartbeat_minutes": 29},
-    "architect":   {"heartbeat_minutes": 43},
-    "techartist":  {"heartbeat_minutes": 47},
-    "narrative":   {"heartbeat_minutes": 61},
+DEFAULT_QUEUES = {
+    "questions":  {"handler": "default", "sla_minutes": 120, "id_prefix": "REQ"},
+    "decisions":  {"handler": "default", "sla_minutes": 120, "id_prefix": "REQ"},
+    "reviews":    {"handler": "default", "sla_minutes": 240, "id_prefix": "REQ"},
+    "reports":    {"handler": "default", "sla_minutes": 240, "id_prefix": "REQ"},
+    "requests":   {"handler": "default", "sla_minutes": 60,  "id_prefix": "FIX"},
+    "blockers":   {"handler": "default", "sla_minutes": None, "id_prefix": "BLK"},
 }
 
-DEFAULT_DAILY_ORDER = ["programmer", "narrative", "techartist", "architect", "designer"]
+DEFAULT_AGENTS = {
+    "default": {"heartbeat_minutes": 30},
+}
+
+DEFAULT_DAILY_ORDER = []
 
 DEFAULT_EMOJI = {
     "open":       "🔓",
@@ -41,7 +46,9 @@ DEFAULT_EMOJI = {
     "overdue":    "⏱️",
 }
 
+# Deprecated: use DEFAULT_DAILY_ORDER
 DAILY_SUMMARY_ORDER = DEFAULT_DAILY_ORDER
+
 
 # ─────────────────────────────────────────────
 # Global State & Config Cache
@@ -75,10 +82,15 @@ def get_config(project_root: Path) -> Dict[str, Any]:
     # Safer merge for queues to handle old format (owner/sla_hours)
     merged_queues = {}
     base_queues = base.get("queues", {})
-    
+
     # 1. Start with all from config.json
     for q_name, ovr in base_queues.items():
-        default_val = DEFAULT_QUEUES.get(q_name, {"handler": "designer", "sla_minutes": None, "id_prefix": "REQ"})
+        # Fallback to generic default_val if q_name is not in DEFAULT_QUEUES
+        # REQ-003: preserve legacy handler for old queues if missing
+        default_val = DEFAULT_QUEUES.get(
+            q_name,
+            LEGACY_QUEUES.get(q_name, {"handler": "default", "sla_minutes": None, "id_prefix": "REQ"})
+        )
         merged_queues[q_name] = {
             "handler":      ovr.get("handler", ovr.get("owner", default_val["handler"])),
             "sla_minutes":  ovr.get("sla_minutes",
@@ -87,7 +99,7 @@ def get_config(project_root: Path) -> Dict[str, Any]:
                                     else default_val["sla_minutes"]),
             "id_prefix":    ovr.get("id_prefix", default_val["id_prefix"]),
         }
-    
+
     # 2. Add defaults if not present
     for q_name, default_val in DEFAULT_QUEUES.items():
         if q_name not in merged_queues:
@@ -126,12 +138,11 @@ def get_status_emoji(project_root: Path) -> Dict[str, str]:
 
 def get_blockers_queue(project_root: Path) -> str:
     raw = get_config(project_root).get("raw", {})
-    return raw.get("blockers_queue", "designer-blockers")
+    return raw.get("blockers_queue", "blockers")
 
 
 def get_daily_order(project_root: Path) -> List[str]:
     return get_config(project_root)["daily_summary_order"]
-
 
 def load_config(project_root: Path) -> Dict[str, Any]:
     cfg_file = get_mai_dir(project_root) / "config.json"

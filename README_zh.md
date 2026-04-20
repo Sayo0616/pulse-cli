@@ -53,21 +53,29 @@ mai init my-team
 # ✅ Project 'my-team' initialized.
 ```
 
-### 2. 创建 Issue
+### 2. 注册 Agent
 
 ```bash
-mai issue new architect-decisions "渲染管线技术方案评审"
-# ✅ Issue REQ-001 created in queue 'architect-decisions'
+mai agent add alice --heartbeat-minutes 30
+# ✅ Agent 'alice' registered.
+# ✅ Default queue created: alice-tasks
 ```
 
-### 3. 认领 Issue（自动加锁）
+### 3. 创建 Issue
+
+```bash
+mai issue new questions "渲染管线技术方案评审"
+# ✅ Issue REQ-001 created in queue 'questions'
+```
+
+### 4. 认领 Issue（自动加锁）
 
 ```bash
 mai issue claim REQ-001
 # 🔒 Issue REQ-001 claimed.
 ```
 
-### 4. 完成 Issue（归档 + 解锁）
+### 5. 完成 Issue（归档 + 解锁）
 
 ```bash
 mai issue complete REQ-001 "技术方案可行，同意实现"
@@ -165,10 +173,10 @@ mai [-v|--version] [--project <项目名>] [--format json|text] [--dry-run] <子
 | `mai exec safe-check <cmd>` | 检查命令是否危险 |
 | `mai init [name]` | 初始化项目（默认当前目录） |
 | `mai project init <name>` | 在默认路径初始化项目 |
+| `mai agent add <name>` | 注册新 Agent 并创建默认任务队列 |
 
 
 ---
-
 ## 配置文件示例
 
 所有协作规则在 `.mai/config.json` 中：
@@ -177,22 +185,16 @@ mai [-v|--version] [--project <项目名>] [--format json|text] [--dry-run] <子
 {
   "name": "my-team",
   "queues": {
-    "architect-decisions": {
-      "handler": "architect",
+    "questions": {
+      "handler": "alice",
       "sla_minutes": 120,
       "id_prefix": "REQ"
-    },
-    "quick-fix-requests": {
-      "handler": "programmer",
-      "sla_minutes": 60,
-      "id_prefix": "FIX"
     }
   },
   "agents": {
-    "programmer": { "heartbeat_minutes": 17 },
-    "architect":  { "heartbeat_minutes": 43 }
+    "alice": { "heartbeat_minutes": 30 }
   },
-  "daily_summary_order": ["programmer", "narrative", "techartist", "architect", "designer"],
+  "daily_summary_order": ["alice", "bob"],
   "issue_status_emoji": {
     "open": "🔓",
     "claimed": "🔄",
@@ -204,9 +206,11 @@ mai [-v|--version] [--project <项目名>] [--format json|text] [--dry-run] <子
 ---
 
 ## 退出码
+...
+---
 
-| 退出码 | 含义 |
-|:---:|:---|
+*Mai CLI v1.4 — 通用默认值与 Agent 管理版*
+
 | 0 | 成功 |
 | 1 | 一般错误（参数错误、Issue 未找到等） |
 | 2 | 锁被占用（其他进程持有锁，未超时） |

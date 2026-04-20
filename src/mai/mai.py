@@ -12,7 +12,7 @@ from importlib.metadata import version, PackageNotFoundError
 try:
     __version__ = version("mai-cli")
 except PackageNotFoundError:
-    __version__ = "1.3.0"
+    __version__ = "1.4.0"
 
 from .config import (
     get_mai_dir, get_async_dir, find_project_root,
@@ -175,6 +175,13 @@ def build_parser():
     pr = proj_sp.add_subparsers(dest="proj_cmd", required=True)
     p = pr.add_parser("init"); p.add_argument("project_name")
 
+    # ── agent ──
+    agent_sp = sub.add_parser("agent")
+    ag = agent_sp.add_subparsers(dest="agent_cmd", required=True)
+    p = ag.add_parser("add", help="Add a new agent")
+    p.add_argument("name")
+    p.add_argument("--heartbeat-minutes", type=int, default=30)
+
     return parser
 
 
@@ -198,6 +205,7 @@ def dispatch(args):
     from .escalation import cmd_escalation_gen
     from .safe_exec import exec_safe_check
     from .project import cmd_project_init
+    from .agent import cmd_agent_add
 
     project_root = None
     if args.subcommand not in ["project", "init"] or (args.subcommand == "project" and args.proj_cmd != "init"):
@@ -227,6 +235,8 @@ def dispatch(args):
             return dispatch_exec(args, project_root)
         elif args.subcommand == "project":
             return dispatch_project(args)
+        elif args.subcommand == "agent":
+            return dispatch_agent(args, project_root)
         elif args.subcommand == "init":
             from .project import cmd_project_init
             return cmd_project_init(args.project_name)
@@ -320,6 +330,12 @@ def dispatch_project(args):
     from .project import cmd_project_init
     if args.proj_cmd == "init":
         return cmd_project_init(args.project_name)
+
+
+def dispatch_agent(args, project_root):
+    from .agent import cmd_agent_add
+    if args.agent_cmd == "add":
+        return cmd_agent_add(project_root, args.name, args.heartbeat_minutes)
 
 
 # ─────────────────────────────────────────────

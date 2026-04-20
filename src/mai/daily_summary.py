@@ -100,23 +100,7 @@ def daily_summary_read(project_root: Path, agent: Optional[str] = None, read_all
         return daily_summary_collect(project_root)
 
     if agent == "." or agent is None:
-        # 读取所有当前进度（不触发结束）
-        summaries: Dict[str, str] = {}
-        for a in order:
-            sf = summary_dir / f"{a}.md"
-            summaries[a] = sf.read_text("utf-8", errors="replace") if sf.exists() else ""
-
-        result = DailySummaryResult(date=today, summaries=summaries, is_all=False)
-        if GLOBAL.format == "json":
-            out_json({"ok": True, "date": today, "summaries": summaries})
-        else:
-            lines = [f"=== Daily Progress - {today} ==="]
-            for a in order:
-                content = summaries.get(a, "").strip()
-                lines.append(f"\n## {a.title()}")
-                lines.append(content if content else "(no summary)")
-            out("\n".join(lines))
-        return result
+        err("Must specify an agent (e.g., 'mai daily-summary read programmer').", 1, error="AGENT_REQUIRED")
 
     # 读取指定 agent
     if agent not in order:

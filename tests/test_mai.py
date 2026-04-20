@@ -1,6 +1,6 @@
 """Mai CLI - pytest test suite.
 
-v1.1.0
+v1.4.0
 """
 
 import os
@@ -19,9 +19,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 def test_default_queues_keys():
     from mai.config import DEFAULT_QUEUES
-    assert "programmer-questions" in DEFAULT_QUEUES
-    assert "designer-blockers" in DEFAULT_QUEUES
-    assert DEFAULT_QUEUES["programmer-questions"]["handler"] == "designer"
+    assert "questions" in DEFAULT_QUEUES
+    assert "blockers" in DEFAULT_QUEUES
+    assert DEFAULT_QUEUES["questions"]["handler"] == "default"
 
 
 def test_global_args_defaults():
@@ -80,16 +80,16 @@ def test_make_issue_content():
     from mai.issue import make_issue_content
     content = make_issue_content(
         issue_id="REQ-001",
-        queue="programmer-questions",
+        queue="questions",
         title="Test issue",
         status="open",
-        owner="programmer",
+        owner="alice",
         ref="",
         description="A test",
         project_root=None,
     )
     assert "# [REQ-001] Test issue" in content
-    assert "**队列：** programmer-questions" in content
+    assert "**队列：** questions" in content
     assert "## 问题描述" in content
 
 
@@ -100,21 +100,21 @@ def test_parse_issue_file():
         f = Path(tmpdir) / "REQ-001.md"
         f.write_text(
             "# [REQ-001] Test\n\n"
-            "**发起方：** programmer\n"
-            "**处理方：** programmer\n"
+            "**发起方：** alice\n"
+            "**处理方：** alice\n"
             "**创建时间：** 2026-04-19T10:00:00\n"
             "**状态：** 🔓 open\n"
-            "**队列：** programmer-questions\n\n"
+            "**队列：** questions\n\n"
             "---\n\n"
             "## 问题描述\n\nTest description.\n\n"
             "## 关联上下文\n\n.\n\n"
-            "## 处理记录\n\n- [2026-04-19T10:00:00] @programmer: 创建\n"
+            "## 处理记录\n\n- [2026-04-19T10:00:00] @alice: 创建\n"
         )
         data = parse_issue_file(f)
         assert data["id"] == "REQ-001"
         assert data["title"] == "Test"
         assert data["status"] == "open"
-        assert data["owner"] == "programmer"
+        assert data["owner"] == "alice"
         assert "Test description" in data["description"]
 
 
@@ -123,11 +123,11 @@ def test_next_issue_id():
     import tempfile
     with tempfile.TemporaryDirectory() as tmpdir:
         root = Path(tmpdir)
-        mai_dir = root / ".mai" / "queues" / "programmer-questions"
+        mai_dir = root / ".mai" / "queues" / "questions"
         mai_dir.mkdir(parents=True)
         (mai_dir / "REQ-001.md").write_text("# [REQ-001] First\n")
         (mai_dir / "REQ-002.md").write_text("# [REQ-002] Second\n")
-        assert next_issue_id(root, "programmer-questions") == "REQ-003"
+        assert next_issue_id(root, "questions") == "REQ-003"
 
 
 def test_read_issue_not_found():
@@ -159,10 +159,10 @@ def test_acquire_and_release_lock():
     with tempfile.TemporaryDirectory() as tmpdir:
         root = Path(tmpdir)
         (root / ".mai" / "locks").mkdir(parents=True)
-        assert acquire_lock(root, "REQ-001", "programmer") is True
+        assert acquire_lock(root, "REQ-001", "alice") is True
         info = check_lock(root, "REQ-001")
         assert info is not None
-        assert info["holder"] == "programmer"
+        assert info["holder"] == "alice"
         assert info["stale"] is False
         release_lock(root, "REQ-001")
         assert check_lock(root, "REQ-001") is None

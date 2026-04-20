@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.4.0 (2026-04-20)
+- **通用默认值 (REQ-003)**：将默认 Agent 设为 `default`，取消硬编码具体项目角色，提高 CLI 通用性。支持旧版配置中的 legacy 队列回退，保障老项目无缝兼容。
+- **Agent 管理 (REQ-004)**：新增 `mai agent add` 命令，支持动态注册 Agent 并自动创建 `<agent>-tasks` 任务队列。
+- **约束加强**：`mai daily-summary read` 在未指定 `--all` 时必须明确指定目标 Agent。
+
 ## v1.3.0 (2026-04-20)
 - **版本管理统一**：移除源码中的硬编码版本号，统一使用 `importlib.metadata`。
 - **并发安全性**：在 `daily_summary_write` 中引入 `flock` 锁保护，确保多 Agent 并发写入日报时的原子性。

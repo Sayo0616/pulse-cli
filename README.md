@@ -45,25 +45,31 @@ pip install -e .
 mai init MyProject
 ```
 
-**Step 2 — Create an issue**
+**Step 2 — Register an agent**
 
 ```bash
-mai --project MyProject issue new programmer-questions "How should we handle input buffering?"
+mai --project MyProject agent add alice --heartbeat-minutes 30
 ```
 
-**Step 3 — Have the assigned agent claim it**
+**Step 3 — Create an issue**
+
+```bash
+mai --project MyProject issue new questions "How should we handle input buffering?"
+```
+
+**Step 4 — Have the assigned agent claim it**
 
 ```bash
 mai --project MyProject issue claim REQ-001
 ```
 
-**Step 4 — Mark it done**
+**Step 5 — Mark it done**
 
 ```bash
 mai --project MyProject issue complete REQ-001 "Decision: ring buffer, 60Hz polling"
 ```
 
-**Step 5 — Inspect queues**
+**Step 6 — Inspect queues**
 
 ```bash
 mai --project MyProject queue check
@@ -144,10 +150,11 @@ mai escalation gen <issue-id>
 mai exec safe-check <command>
 ```
 
-### Project / Init
+### Project / Agent
 ```
 mai init [project-name]
 mai project init <project-name>
+mai agent add <name> [--heartbeat-minutes 30]
 ```
 
 ---
@@ -159,17 +166,16 @@ Edit `.mai/config.json` in your project root:
 ```json
 {
   "queues": {
-    "programmer-questions": {
-      "handler": "designer",
+    "questions": {
+      "handler": "alice",
       "sla_minutes": 120,
       "id_prefix": "REQ"
     }
   },
   "agents": {
-    "programmer": { "heartbeat_minutes": 17 },
-    "designer":   { "heartbeat_minutes": 29 }
+    "alice": { "heartbeat_minutes": 30 }
   },
-  "daily_summary_order": ["programmer", "designer", "architect", "narrative", "techartist"]
+  "daily_summary_order": ["alice", "bob"]
 }
 ```
 
