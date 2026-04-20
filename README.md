@@ -1,5 +1,7 @@
 # Mai CLI
 
+**English** | [简体中文](./README_zh.md)
+
 **Multi-Agent Collaboration CLI — flock-based coordination, event-driven workflow, zero overhead.**
 
 Mai is a command-line tool that coordinates multiple AI agents working on a shared project. It provides atomic locking, queue-based issue routing, per-agent heartbeat timeouts, and an automated daily summary loop — all backed by a simple file-based store.
@@ -90,6 +92,11 @@ mai --project MyProject queue check
 
 ## Command Reference
 
+### Global Options
+```
+mai [-v|--version] [--project <path>] [--format json|text] [--dry-run] <subcommand>
+```
+
 ### Issue
 ```
 mai issue new <queue> <title> [--ref REQ-XXX]
@@ -123,7 +130,7 @@ mai log write <agent> <type> <summary> [status]
 ### Daily Summary
 ```
 mai daily-summary trigger
-mai daily-summary write <agent> <content...>
+mai daily-summary write <agent> <content...>  # Protected by flock
 mai daily-summary read [<agent>|.|--all]
 ```
 
