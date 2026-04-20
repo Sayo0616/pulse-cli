@@ -40,7 +40,7 @@ pip install -e .
 **Step 1 — Initialize a project**
 
 ```bash
-mai project init MyProject
+mai init MyProject
 ```
 
 **Step 2 — Create an issue**
@@ -132,8 +132,14 @@ mai daily-summary read [<agent>|.|--all]
 mai escalation gen <issue-id>
 ```
 
-### Project
+### Exec
 ```
+mai exec safe-check <command>
+```
+
+### Project / Init
+```
+mai init [project-name]
 mai project init <project-name>
 ```
 
