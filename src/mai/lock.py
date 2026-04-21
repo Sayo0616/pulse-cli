@@ -4,6 +4,7 @@
 
 import fcntl
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any
@@ -22,6 +23,13 @@ def acquire_lock(project_root: Path, issue_id: str, agent: str) -> bool:
     """Acquire flock-based lock. Returns True if acquired, False if held by alive agent."""
     lp = lock_path(project_root, issue_id)
     lp.parent.mkdir(parents=True, exist_ok=True)
+
+    if GLOBAL.dry_run:
+        # In dry-run, check for existing non-stale locks but don't acquire
+        existing = check_lock(project_root, issue_id)
+        if existing and not existing.get("stale"):
+            return False
+        return True
 
     lock_fd = os.open(str(lp), os.O_RDWR | os.O_CREAT, 0o644)
 
@@ -124,27 +132,56 @@ def cmd_lock_check(project_root: Path, issue_id: str):
         out(f"No lock on issue {issue_id}.", command="lock check", locked=False)
 
 
-def cmd_lock_force_release(project_root: Path, issue_id: str):
+def cmd_lock_release(project_root: Path, issue_id: str, force: bool = False, yes: bool = False):
+    """3c-iii: Standardized release with force/yes tiers."""
     from .mai import out, err, write_history, GLOBAL
     lock_info = check_lock(project_root, issue_id)
     if not lock_info:
-        out(f"No lock to release on issue {issue_id}.", command="lock force-release")
+        out(f"No lock to release on issue {issue_id}.", command="lock release")
         return
 
-    if not lock_info["stale"]:
+    agent = os.environ.get("MAI_AGENT", os.environ.get("AGENT_NAME", "unknown"))
+    is_owner = (lock_info["holder"] == agent)
+    is_stale = lock_info["stale"]
+
+    should_release = False
+    if is_owner or is_stale:
+        should_release = True
+    elif force or yes:
+        if yes:
+            should_release = True
+        else:
+            # Interactive confirmation
+            if not sys.stdin.isatty():
+                err("Interactive confirmation required for non-owner release. Use --yes for non-TTY environments.",
+                    1, error="NON_INTERACTIVE", hint="Run with --yes to bypass confirmation.")
+
+            print(f"WARNING: Lock on {issue_id} is held by {lock_info['holder']} and NOT stale.")
+            confirm = input("Force release anyway? (y/N): ").strip().lower()
+            if confirm == 'y':
+                should_release = True
+            else:
+                out("Release cancelled.", command="lock release")
+                return
+    else:
         ttl = round((lock_info["threshold_seconds"] - lock_info["age_seconds"]) / 60, 1)
         err(
-            f"Lock on {issue_id} still alive (TTL: {ttl} min). Refusing to force-release.",
+            f"Lock on {issue_id} is held by {lock_info['holder']} (TTL: {ttl} min). "
+            "Use --force or --yes to override.",
             2, error="LOCK_ALIVE", ttl_minutes=ttl
         )
 
-    if not GLOBAL.dry_run:
-        release_lock(project_root, issue_id)
-        write_history(project_root, "system", "lock_force_release",
-                      f"Force-released lock on {issue_id} (was held by {lock_info['holder']})")
+    if should_release:
+        if not GLOBAL.dry_run:
+            release_lock(project_root, issue_id)
+            action = "lock_release" if (is_owner or is_stale) else "lock_force_release"
+            write_history(project_root, agent, action,
+                          f"Released lock on {issue_id} (was held by {lock_info['holder']})")
 
-    out(f"Force-released lock on issue {issue_id} (was held by {lock_info['holder']}).",
-        command="lock force-release", former_holder=lock_info["holder"])
+        msg = f"Lock on issue {issue_id} released."
+        if not (is_owner or is_stale):
+            msg = f"Force-released lock on issue {issue_id} (was held by {lock_info['holder']})."
+        out(msg, command="lock release", former_holder=lock_info["holder"])
 
 
 def cmd_lock_guardian(project_root: Path):

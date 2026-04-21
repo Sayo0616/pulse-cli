@@ -4,7 +4,7 @@
 
 import re
 from pathlib import Path
-from .config import load_config, save_config, get_mai_dir
+from .config import load_config, save_config, get_mai_dir, GLOBAL
 from .project import ensure_mai_structure
 
 def cmd_agent_add(project_root: Path, name: str, heartbeat_minutes: int = 30):
@@ -32,7 +32,7 @@ def cmd_agent_add(project_root: Path, name: str, heartbeat_minutes: int = 30):
     config = load_config(project_root)
     agents = config.get("agents", {})
     if normalized_name in agents:
-        err(f"Agent '{normalized_name}' already exists.", 1, error="ALREADY_EXISTS")
+        err(f"Agent '{normalized_name}' already exists.", 1, error="ALREADY_EXISTS", hint="Run 'mai agent list' to see all registered agents.")
 
     # 3. Register Agent
     agents[normalized_name] = {"heartbeat_minutes": heartbeat_minutes}
@@ -53,8 +53,30 @@ def cmd_agent_add(project_root: Path, name: str, heartbeat_minutes: int = 30):
     config["queues"] = queues
 
     # 5. Save and Ensure Structure
+    if GLOBAL.dry_run:
+        out(f"[dry-run] Would register agent '{normalized_name}' and create queue '{q_name}'", 
+            command="agent add", agent=normalized_name, queue=q_name)
+        return
+
     save_config(project_root, config)
     ensure_mai_structure(project_root)
 
     out(f"Agent '{normalized_name}' registered successfully.", command="agent add", agent=normalized_name)
     out(f"Default queue created: {q_name} (Prefix: {prefix})")
+
+
+def cmd_agent_list(project_root: Path):
+    """3a: List all registered agents."""
+    from .mai import out, out_json
+    config = load_config(project_root)
+    agents = config.get("agents", {})
+
+    if GLOBAL.format == "json":
+        out_json({"ok": True, "command": "agent list", "agents": agents})
+    else:
+        out(f"\n## Registered Agents")
+        if not agents:
+            out("  (no agents registered)")
+        for name, info in agents.items():
+            hb = info.get("heartbeat_minutes", 30)
+            out(f"  - {name:15} (Heartbeat: {hb}m)")

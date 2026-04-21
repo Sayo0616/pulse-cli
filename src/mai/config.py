@@ -160,35 +160,31 @@ def save_config(project_root: Path, config: Dict[str, Any]):
 
 
 def find_project_root(project_name: Optional[str] = None) -> Optional[Path]:
-    if project_name:
-        for env_var in ["AGENTS_PROJECT", "MAI_PROJECT"]:
-            val = os.environ.get(env_var)
-            if val:
-                p = Path(val)
-                if p.name == project_name or str(p) == project_name:
-                    if p.exists():
-                        return p
-        wp = Path.home() / ".openclaw" / "workspace" / "projects" / project_name
-        if wp.exists():
-            return wp
-        cwd = Path.cwd()
-        for parent in [cwd] + list(cwd.parents):
-            if parent.name == project_name and (parent / "AGENTS.md").exists():
-                return parent
-        return None
-
-    for env_var in ["AGENTS_PROJECT", "MAI_PROJECT"]:
+    """Find the project root based on MAI_PROJECT env or CWD upward discovery."""
+    # 1. Environment variables have highest priority
+    for env_var in ["MAI_PROJECT", "AGENTS_PROJECT"]:
         val = os.environ.get(env_var)
         if val:
-            p = Path(val)
+            p = Path(val).resolve()
             if p.exists():
                 return p
 
-    projects_dir = Path.home() / ".openclaw" / "workspace" / "projects"
-    if projects_dir.exists():
-        dirs = [d for d in projects_dir.iterdir() if d.is_dir()]
-        if len(dirs) == 1:
-            return dirs[0]
+    # 2. If project_name is provided, try to find it as a path or in legacy workspace
+    if project_name:
+        p = Path(project_name).resolve()
+        if (p / ".mai").exists():
+            return p
+        
+        # Legacy workspace check
+        wp = Path.home() / ".openclaw" / "workspace" / "projects" / project_name
+        if wp.exists():
+            return wp
+
+    # 3. CWD upward discovery (look for .mai/ directory)
+    cwd = Path.cwd().resolve()
+    for parent in [cwd] + list(cwd.parents):
+        if (parent / ".mai").exists():
+            return parent
 
     return None
 

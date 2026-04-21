@@ -34,7 +34,7 @@ def next_issue_id(project_root: Path, queue: str) -> str:
 
 
 # ─────────────────────────────────────────────
-# Issue File Format (per AGENTS_COLLAB_DESIGN_CMD.md §七·P0-1)
+# Issue File Format
 # ─────────────────────────────────────────────
 
 def make_issue_content(
@@ -51,10 +51,9 @@ def make_issue_content(
 ) -> str:
     """Build a spec-compliant issue markdown file."""
     now = datetime.now().isoformat()
-    emoji = get_status_emoji(project_root).get(status, "🔓") if project_root else "🔓"
+    emoji = get_status_emoji(project_root).get(status.lower(), "🔓") if project_root else "🔓"
 
-    owner_sla = ""
-    sla_hours = None
+    owner_sla, sla_hours = "", None
     if project_root:
         owner_sla, sla_hours = get_queue_sla(project_root).get(queue, ("", None))
 
@@ -71,7 +70,7 @@ def make_issue_content(
         f"**发起方：** @{owner_field}",
         f"**处理方：** @{owner_field}",
         f"**创建时间：** {now}",
-        f"**状态：** {emoji} {'open' if status == 'open' else status}",
+        f"**状态：** {emoji} {status}",
         f"**SLA 截止：** {sla_deadline}",
         f"**队列：** {queue}",
     ]
@@ -86,10 +85,17 @@ def make_issue_content(
     if ref:
         lines.append(f"- 关联 Issue：{ref}")
     lines.extend(["", "## 处理记录", ""])
+    
     timeline = timeline or []
+    # Add initial creation entry if timeline is empty
+    if not timeline:
+        timeline.append(f"[{now}] @{owner_field}: 创建")
+    
     for entry in timeline:
-        lines.append(f"- [{now}] @{owner_field}: {entry}")
-    lines.append(f"- [{now}] @{owner_field}: 创建")
+        if entry.startswith("- "):
+            lines.append(entry)
+        else:
+            lines.append(f"- {entry}")
 
     return "\n".join(lines)
 
@@ -114,13 +120,17 @@ def parse_issue_file(path: Path) -> Dict[str, Any]:
         "timeline":           [],
     }
 
-    first_line = content.splitlines()[0] if content else ""
+    lines = content.splitlines()
+    if not lines:
+        return data
+
+    first_line = lines[0]
     m = re.match(r"#\s+\[([^\]]+)\]\s+(.+)", first_line)
     if m:
         data["id"] = m.group(1)
         data["title"] = m.group(2).strip()
 
-    for line in content.splitlines():
+    for line in lines:
         m = re.match(r"\*\*([^：]+)：\*\*\s*(.+)", line)
         if m:
             key, val = m.group(1).strip(), m.group(2).strip()
@@ -137,12 +147,13 @@ def parse_issue_file(path: Path) -> Dict[str, Any]:
             if key in key_map:
                 data[key_map[key]] = val
             if key == "状态":
+                # Extract text after emoji
                 data["status"] = re.sub(r"^[^\s]+\s*", "", val).strip()
 
     sections = {}
     current = None
     body_lines = []
-    for line in content.splitlines()[1:]:
+    for line in lines[1:]:
         sm = re.match(r"##\s+(.+)", line)
         if sm:
             if current:
@@ -158,7 +169,7 @@ def parse_issue_file(path: Path) -> Dict[str, Any]:
     data["context"] = sections.get("关联上下文", "")
     timeline_str = sections.get("处理记录", "")
     data["timeline"] = [
-        l.strip() for l in timeline_str.splitlines() if l.strip().startswith("- [")
+        l.strip("- ") for l in timeline_str.splitlines() if l.strip().startswith("- [")
     ]
 
     return data
@@ -167,17 +178,18 @@ def parse_issue_file(path: Path) -> Dict[str, Any]:
 def read_issue(project_root: Path, issue_id: str) -> Optional[Dict[str, Any]]:
     """Find and read issue by its ID across all queues."""
     mai = get_mai_dir(project_root)
-    if not (mai / "queues").exists():
+    queues_dir = mai / "queues"
+    if not queues_dir.exists():
         return None
-    for queue_dir in (mai / "queues").iterdir():
+    for queue_dir in queues_dir.iterdir():
         if not queue_dir.is_dir():
             continue
         clean_id = issue_id.strip()
-        for f in queue_dir.glob("*.md"):
+        f = queue_dir / f"{clean_id}.md"
+        if f.exists():
             data = parse_issue_file(f)
-            if data["id"] == clean_id:
-                data["queue"] = queue_dir.name
-                return data
+            data["queue"] = queue_dir.name
+            return data
     return None
 
 
@@ -185,15 +197,48 @@ def issue_file_path(project_root: Path, queue: str, issue_id: str) -> Path:
     return get_mai_dir(project_root) / "queues" / queue / f"{issue_id}.md"
 
 
+def _update_issue_file(project_root: Path, data: Dict[str, Any], status: str, remark: Optional[str] = None):
+    """Helper to update issue file status and timeline."""
+    if GLOBAL.dry_run:
+        return
+
+    now = datetime.now().isoformat()
+    agent = os.environ.get("MAI_AGENT", os.environ.get("AGENT_NAME", "unknown"))
+    emoji = get_status_emoji(project_root).get(status.lower(), "❓")
+
+    fpath = Path(data["path"])
+    content = fpath.read_text("utf-8")
+    
+    # Update status
+    content = re.sub(r"\*\*状态：\*\*.*", f"**状态：** {emoji} {status}", content)
+    
+    # Update timeline
+    timeline_entry = f"[{now}] @{agent}: {status}"
+    if remark:
+        timeline_entry += f"：{remark}"
+    
+    content = re.sub(
+        r"## 处理记录",
+        f"## 处理记录\n- {timeline_entry}",
+        content
+    )
+    
+    fpath.write_text(content, encoding="utf-8")
+    sync_to_async(fpath, project_root)
+    write_history(project_root, agent, f"issue_{status.lower()}", 
+                  f"Issue {data['id']} status changed to {status}", status.lower())
+
+
 # ─────────────────────────────────────────────
 # Issue Commands
 # ─────────────────────────────────────────────
 
 def cmd_issue_new(project_root: Path, queue: str, title: str, ref: Optional[str]):
-    from .mai import out, err, ensure_mai_structure
+    from .mai import out, err, ensure_mai_structure, suggest
     queue_sla = get_queue_sla(project_root)
     if queue not in queue_sla:
-        err(f"Unknown queue: {queue}. Valid: {list(queue_sla.keys())}", 1, error="INVALID_QUEUE")
+        hint = suggest(queue, list(queue_sla.keys()), "mai queue check")
+        err(f"Unknown queue: {queue}.", 1, error="INVALID_QUEUE", hint=hint)
 
     ensure_mai_structure(project_root)
     issue_id = next_issue_id(project_root, queue)
@@ -203,7 +248,7 @@ def cmd_issue_new(project_root: Path, queue: str, title: str, ref: Optional[str]
         issue_id=issue_id,
         queue=queue,
         title=title,
-        status="open",
+        status="OPEN",
         owner=owner,
         ref=ref or "",
         project_root=project_root,
@@ -215,9 +260,6 @@ def cmd_issue_new(project_root: Path, queue: str, title: str, ref: Optional[str]
         return
 
     fpath = issue_file_path(project_root, queue, issue_id)
-    if fpath.exists():
-        err(f"Issue {issue_id} already exists", 1, error="ALREADY_EXISTS")
-
     fpath.write_text(content, encoding="utf-8")
     sync_to_async(fpath, project_root)
     write_history(project_root, "system", "issue_new",
@@ -225,43 +267,6 @@ def cmd_issue_new(project_root: Path, queue: str, title: str, ref: Optional[str]
 
     out(f"Issue {issue_id} created in queue '{queue}'",
         command="issue new", issue_id=issue_id, queue=queue, owner=owner)
-
-
-def cmd_issue_amend(project_root: Path, issue_id: str, remark: str):
-    from .mai import out, err
-    issue = read_issue(project_root, issue_id)
-    if not issue:
-        err(f"Issue {issue_id} not found", 1, error="NOT_FOUND")
-
-    mai = get_mai_dir(project_root)
-    dec_dir = mai / "decisions"
-    dec_dir.mkdir(parents=True, exist_ok=True)
-    dec_file = dec_dir / f"{issue_id}.md"
-
-    now = datetime.now().isoformat()
-    amend_entry = (
-        f"\n## 修订记录 @ {now}\n\n"
-        f"**修订人：** system\n"
-        f"**备注：** {remark}\n"
-        f"**状态：** 已修订\n"
-    )
-
-    if not GLOBAL.dry_run:
-        if dec_file.exists():
-            dec_file.write_text(dec_file.read_text("utf-8") + amend_entry)
-        else:
-            dec_file.write_text(f"# 修订记录 - Issue {issue_id}\n{amend_entry}")
-        sync_to_async(dec_file, project_root)
-
-        fpath = Path(issue["path"])
-        content = fpath.read_text("utf-8")
-        content = re.sub(r"\*\*状态：\*\*.*", f"**状态：** ⚠️ 已修订", content)
-        fpath.write_text(content, encoding="utf-8")
-        sync_to_async(fpath, project_root)
-        write_history(project_root, "system", "issue_amend",
-                      f"Issue {issue_id} amended: {remark}", "amended")
-
-    out(f"Issue {issue_id} amended.", command="issue amend", issue_id=issue_id)
 
 
 def cmd_issue_claim(project_root: Path, issue_id: str):
@@ -280,27 +285,39 @@ def cmd_issue_claim(project_root: Path, issue_id: str):
 
     if not acquire_lock(project_root, issue_id, agent):
         lock_info = check_lock(project_root, issue_id)
-        ttl = 0
-        if lock_info:
-            ttl = round((lock_info["threshold_seconds"] - lock_info["age_seconds"]) / 60, 1)
-        err(
-            f"Issue {issue_id} is locked by {lock_info['holder'] if lock_info else 'another agent'} "
-            f"(TTL: {ttl} min).",
-            2, error="LOCK_HELD",
-            holder=lock_info["holder"] if lock_info else "unknown",
-            ttl_minutes=ttl
-        )
+        ttl = round((lock_info["threshold_seconds"] - lock_info["age_seconds"]) / 60, 1) if lock_info else 0
+        err(f"Issue {issue_id} is locked by {lock_info['holder'] if lock_info else 'unknown'} (TTL: {ttl} min).",
+            2, error="LOCK_HELD", holder=lock_info["holder"] if lock_info else "unknown", ttl_minutes=ttl)
 
-    if not GLOBAL.dry_run:
-        fpath = Path(issue["path"])
-        content = fpath.read_text("utf-8")
-        content = re.sub(r"\*\*状态：\*\*.*", "**状态：** 🔄 进行中", content)
-        fpath.write_text(content, encoding="utf-8")
-        sync_to_async(fpath, project_root)
-        write_history(project_root, agent, "issue_claim", f"Issue {issue_id} claimed", "claimed")
-
-    out(f"Issue {issue_id} claimed by {agent}.",
+    _update_issue_file(project_root, issue, "IN_PROGRESS")
+    out(f"Issue {issue_id} claimed by {agent} (Status: IN_PROGRESS).",
         command="issue claim", issue_id=issue_id, holder=agent)
+
+
+def cmd_issue_block(project_root: Path, issue_id: str, reason: str):
+    """REQ-008: Mark issue as BLOCKED."""
+    from .mai import out, err
+    issue = read_issue(project_root, issue_id)
+    if not issue:
+        err(f"Issue {issue_id} not found", 1, error="NOT_FOUND")
+
+    _update_issue_file(project_root, issue, "BLOCKED", remark=reason)
+    out(f"Issue {issue_id} is now BLOCKED: {reason}", command="issue block", issue_id=issue_id)
+
+
+def cmd_issue_unblock(project_root: Path, issue_id: str):
+    """REQ-008: Restore issue from BLOCKED to IN_PROGRESS."""
+    from .mai import out, err
+    issue = read_issue(project_root, issue_id)
+    if not issue:
+        err(f"Issue {issue_id} not found", 1, error="NOT_FOUND")
+
+    if issue["status"].upper() != "BLOCKED":
+        out(f"Issue {issue_id} is not blocked (Current: {issue['status']}).", command="issue unblock", idempotent=True)
+        return
+
+    _update_issue_file(project_root, issue, "IN_PROGRESS")
+    out(f"Issue {issue_id} unblocked (Status: IN_PROGRESS).", command="issue unblock", issue_id=issue_id)
 
 
 def cmd_issue_complete(project_root: Path, issue_id: str, conclusion: str):
@@ -316,41 +333,56 @@ def cmd_issue_complete(project_root: Path, issue_id: str, conclusion: str):
 
         mai = get_mai_dir(project_root)
         dec_dir = mai / "decisions"
+        dec_dir.mkdir(parents=True, exist_ok=True)
         dec_file = dec_dir / f"{issue_id}.md"
         now = datetime.now().isoformat()
-        complete_entry = (
-            f"\n## 结论 @ {now}\n\n"
-            f"**结论：** {conclusion}\n"
-            f"**处理人：** {agent}\n"
-        )
+        complete_entry = f"\n## 结论 @ {now}\n\n**结论：** {conclusion}\n**处理人：** {agent}\n"
+        
         if dec_file.exists():
             dec_file.write_text(dec_file.read_text("utf-8") + complete_entry)
         else:
             dec_file.write_text(f"# 结论 - Issue {issue_id}\n{complete_entry}")
         sync_to_async(dec_file, project_root)
 
-        fpath = Path(issue["path"])
-        content = fpath.read_text("utf-8")
-        content = re.sub(r"\*\*状态：\*\*.*", "**状态：** ✅ 完成", content)
-        content = re.sub(
-            r"## 处理记录",
-            f"## 处理记录\n- [{now}] @{agent}: 完成：{conclusion}",
-            content
-        )
-        fpath.write_text(content, encoding="utf-8")
-        sync_to_async(fpath, project_root)
+        _update_issue_file(project_root, issue, "COMPLETED", remark=f"完成：{conclusion}")
 
-        write_history(project_root, agent, "issue_complete",
-                      f"Issue {issue_id} completed: {conclusion}", "complete")
+    out(f"Issue {issue_id} completed.", command="issue complete", issue_id=issue_id, dry_run=GLOBAL.dry_run)
 
-    out(f"Issue {issue_id} completed.", command="issue complete", issue_id=issue_id)
+
+def cmd_issue_reopen(project_root: Path, issue_id: str, reason: str):
+    """REQ-017: Reopen a COMPLETED issue."""
+    from .mai import out, err
+    issue = read_issue(project_root, issue_id)
+    if not issue:
+        err(f"Issue {issue_id} not found", 1, error="NOT_FOUND")
+
+    _update_issue_file(project_root, issue, "OPEN", remark=f"重新打开：{reason}")
+    out(f"Issue {issue_id} reopened (Status: OPEN).", command="issue reopen", issue_id=issue_id, dry_run=GLOBAL.dry_run)
+
+
+def cmd_issue_status(project_root: Path, issue_id: str):
+    """REQ-008: Show issue status history."""
+    from .mai import out, err
+    issue = read_issue(project_root, issue_id)
+    if not issue:
+        err(f"Issue {issue_id} not found", 1, error="NOT_FOUND")
+
+    out(f"Status History for {issue_id}:")
+    for entry in issue.get("timeline", []):
+        out(f"  {entry}")
+
+
+def cmd_issue_amend(project_root: Path, issue_id: str, remark: str):
+    from .mai import out, err
+    issue = read_issue(project_root, issue_id)
+    if not issue:
+        err(f"Issue {issue_id} not found", 1, error="NOT_FOUND")
+
+    _update_issue_file(project_root, issue, "AMENDED", remark=remark)
+    out(f"Issue {issue_id} amended.", command="issue amend", issue_id=issue_id)
 
 
 def cmd_issue_escalate(project_root: Path, issue_id: str):
-    """
-    Per §七·P2-1: Create new issue in architect-reviews-designer queue,
-    filling the escalation template with original issue content.
-    """
     from .mai import out, err
     issue = read_issue(project_root, issue_id)
     if not issue:
@@ -365,7 +397,7 @@ def cmd_issue_escalate(project_root: Path, issue_id: str):
         issue_id=new_id,
         queue=queue,
         title=f"⚠️ [冲突升级] {issue['title']}",
-        status="open",
+        status="OPEN",
         owner="architect",
         ref=issue_id,
         description=(
@@ -378,6 +410,7 @@ def cmd_issue_escalate(project_root: Path, issue_id: str):
             f"队列：{issue.get('queue', '')}\n"
             f"描述：{desc}\n"
         ),
+        project_root=project_root,
     )
 
     if not GLOBAL.dry_run:

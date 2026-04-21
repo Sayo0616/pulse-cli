@@ -56,6 +56,11 @@ def cmd_project_init(project_name: str):
         out(f"Project '{project_root.name}' already initialized.", command="project init", idempotent=True)
         return
 
+    if GLOBAL.dry_run:
+        from .mai import out
+        out(f"[dry-run] Would initialize project structure in '{project_root}'", command="project init", project_root=str(project_root))
+        return
+
     if not GLOBAL.dry_run:
         new_config = dict(base_config)
         new_config["name"] = project_root.name
