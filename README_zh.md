@@ -49,8 +49,8 @@ pip install -e .
 ### 1. 初始化项目
 
 ```bash
-mai init my-team
-# ✅ Project 'my-team' initialized.
+mai init
+# ✅ Project initialized in current directory.
 ```
 
 ### 2. 注册 Agent
@@ -128,9 +128,13 @@ mai [-v|--version] [--project <项目名>] [--format json|text] [--dry-run] <子
 | 命令 | 说明 |
 |:---|:---|
 | `mai issue new <queue> <标题>` | 创建 Issue，自动分配 ID |
-| `mai issue amend <issue-id> <备注>` | 追加修订记录 |
-| `mai issue claim <issue-id>` | 认领（获取锁） |
+| `mai issue claim <issue-id>` | 认领（获取锁），状态 → IN_PROGRESS |
+| `mai issue block <issue-id> <原因>` | 标记为 BLOCKED（记录原因） |
+| `mai issue unblock <issue-id>` | 解除 BLOCKED，恢复 IN_PROGRESS |
 | `mai issue complete <issue-id> <结论>` | 完成（归档 + 解锁） |
+| `mai issue reopen <issue-id> <原因>` | 重新打开已完成 Issue |
+| `mai issue status <issue-id>` | 查看状态历史时间线 |
+| `mai issue amend <issue-id> <备注>` | 追加修订记录 |
 | `mai issue list [queue]` | 列出 Issue |
 | `mai issue show <issue-id>` | 显示详情 |
 | `mai issue escalate <issue-id>` | 升级为冲突 |
@@ -139,41 +143,49 @@ mai [-v|--version] [--project <项目名>] [--format json|text] [--dry-run] <子
 
 | 命令 | 说明 |
 |:---|:---|
-| `mai queue check [--overdue]` | 扫描队列 |
+| `mai queue check [queue] [--overdue]` | 扫描队列，可选只显示超期项 |
 | `mai queue blockers` | 合并输出所有 blocker |
+| `mai queue create <queue> --owner <agent> [--sla <小时>]` | 创建新队列 |
 
 ### lock — 锁管理
 
 | 命令 | 说明 |
 |:---|:---|
 | `mai lock check <issue-id>` | 检查锁状态 |
-| `mai lock force-release <issue-id>` | 强制释放过期锁 |
+| `mai lock release <issue-id>` | 正常释放锁（仅持有者或 stale 锁） |
+| `mai lock release <issue-id> --force` | 强制释放（需确认） |
+| `mai lock release <issue-id> --yes` | 静默强制释放（非 TTY 环境） |
 | `mai lock guardian` | 全局锁守护 |
 
 ### log — 审计日志
 
 | 命令 | 说明 |
 |:---|:---|
-| `mai log write <agent> <type> <摘要>` | 写入工作记录 |
 | `mai log history [--date YYYY-MM-DD]` | 查询历史 |
+| `mai log undo` | 撤销最后一次写入（基于 .log.bak） |
+| `mai log write <agent> <type> <摘要>` | 写入工作记录 |
 
 ### daily-summary — 每日汇总
 
 | 命令 | 说明 |
 |:---|:---|
 | `mai daily-summary trigger` | 触发每日汇报事件 |
-| `mai daily-summary write <agent> <内容>` | 写入日报（并发锁保护，最后一个 Agent 提交后自动结束） |
+| `mai daily-summary status` | 查看当前轮次进度 |
+| `mai daily-summary reset` | 重置今日轮次 |
+| `mai daily-summary write <agent> <内容>` | 写入日报（按顺序，需先 trigger） |
 | `mai daily-summary read [<agent>|.|--all]` | 读取日报、查看进度或生成汇总报告 |
 
 ### 其他
 
 | 命令 | 说明 |
 |:---|:---|
+| `mai init` | 在当前目录初始化（不接受参数） |
+| `mai project init [name]` | 在指定路径初始化，name 可省略 |
+| `mai agent list` | 列出所有已注册 Agent |
+| `mai agent add <name>` | 注册新 Agent 并创建默认任务队列 |
+| `mai status [--verbose]` | 全局项目视图 |
 | `mai escalation gen <issue-id>` | 生成冲突升级模板 |
 | `mai exec safe-check <cmd>` | 检查命令是否危险 |
-| `mai init [name]` | 初始化项目（默认当前目录） |
-| `mai project init <name>` | 在默认路径初始化项目 |
-| `mai agent add <name>` | 注册新 Agent 并创建默认任务队列 |
 
 
 ---
@@ -209,7 +221,7 @@ mai [-v|--version] [--project <项目名>] [--format json|text] [--dry-run] <子
 ...
 ---
 
-*Mai CLI v1.4 — 通用默认值与 Agent 管理版*
+*Mai CLI v1.5.0 — 核心基础与体验增强版*
 
 | 0 | 成功 |
 | 1 | 一般错误（参数错误、Issue 未找到等） |
@@ -263,4 +275,4 @@ MIT License — 详见 [LICENSE](./LICENSE)
 
 ---
 
-*Mai CLI v1.3 — 并发安全与体验优化版*
+*Mai CLI v1.5.0*

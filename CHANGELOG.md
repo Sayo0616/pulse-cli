@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.5.0 (2026-04-21)
+- **REQ-009: 自动项目探测** — 移除 `--project` 强制要求，默认从当前目录向上递归搜索 `.mai/config.json`；支持 `MAI_PROJECT` 环境变量优先级最高。
+- **REQ-013: Dry-run 漏洞修复** — `acquire_lock` 和 `release_lock` 在 `--dry-run` 模式下完全不产生任何文件。
+- **REQ-011: 日报状态机透明化** — 引入持久化 `status.json` 取代临时 event file；新增 `mai daily-summary status` 和 `mai daily-summary reset` 命令。
+- **REQ-012: 全局状态视图** — 新增 `mai status [--verbose]` 命令，聚合展示队列计数、锁持有情况及日报进度。
+- **REQ-008: Issue 过程追踪** — 引入 `IN_PROGRESS` 和 `BLOCKED` 状态；新增 `mai issue block/unblock/status` 命令；`claim` 时状态从 OPEN → IN_PROGRESS。
+- **REQ-017: 撤销与重开标准化** — `mai issue reopen` 带原因记录；`mai log undo` 基于 `.log.bak` 快照恢复；Lock Release 三档语义（normal / `--force` / `--yes`）。
+- **REQ-014: 模糊匹配与引导报错** — 集成 `difflib`，队列/Agent 名拼错时给出 `Did you mean...?` 建议；所有报错统一增加 `HINT: Run 'mai ...'` 指引。
+- **mai init 简化** — `mai init` 不接受任何参数，始终初始化当前目录。
+- **新增 `mai agent list`** — 列出所有已注册 Agent。
+
 ## v1.4.0 (2026-04-20)
 - **通用默认值 (REQ-003)**：将默认 Agent 设为 `default`，取消硬编码具体项目角色，提高 CLI 通用性。支持旧版配置中的 legacy 队列回退，保障老项目无缝兼容。
 - **Agent 管理 (REQ-004)**：新增 `mai agent add` 命令，支持动态注册 Agent 并自动创建 `<agent>-tasks` 任务队列。

@@ -42,7 +42,7 @@ pip install -e .
 **Step 1 — Initialize a project**
 
 ```bash
-mai init MyProject
+mai init
 ```
 
 **Step 2 — Register an agent**
@@ -106,9 +106,13 @@ mai [-v|--version] [--project <path>] [--format json|text] [--dry-run] <subcomma
 ### Issue
 ```
 mai issue new <queue> <title> [--ref REQ-XXX]
-mai issue amend <issue-id> <remark>
 mai issue claim <issue-id>
+mai issue block <issue-id> <reason>
+mai issue unblock <issue-id>
 mai issue complete <issue-id> <conclusion>
+mai issue reopen <issue-id> <reason>
+mai issue status <issue-id>
+mai issue amend <issue-id> <remark>
 mai issue list [queue]
 mai issue show <issue-id>
 mai issue escalate <issue-id>
@@ -118,24 +122,28 @@ mai issue escalate <issue-id>
 ```
 mai queue check [queue] [--overdue]
 mai queue blockers
+mai queue create <queue> --owner <agent> [--sla <hours>]
 ```
 
 ### Lock
 ```
 mai lock check <issue-id>
-mai lock force-release <issue-id>
+mai lock release <issue-id> [--force] [--yes]
 mai lock guardian
 ```
 
 ### Log
 ```
 mai log history [--date YYYY-MM-DD] [--agent NAME]
+mai log undo
 mai log write <agent> <type> <summary> [status]
 ```
 
 ### Daily Summary
 ```
 mai daily-summary trigger
+mai daily-summary status
+mai daily-summary reset
 mai daily-summary write <agent> <content...>  # Protected by flock
 mai daily-summary read [<agent>|.|--all]
 ```
@@ -152,10 +160,16 @@ mai exec safe-check <command>
 
 ### Project / Agent
 ```
-mai init [project-name]
-mai project init <project-name>
+mai init                      # 在当前目录初始化（不接受参数）
+mai project init [project-name]  # 在指定路径初始化，name 可省略
+mai agent list
 mai agent add <name> [--heartbeat-minutes 30]
+
+### Status
 ```
+mai status [--verbose]
+```
+
 
 ---
 
@@ -196,3 +210,7 @@ Edit `.mai/config.json` in your project root:
 [![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 MIT License — see [LICENSE](LICENSE) for the full text.
+
+---
+
+*Mai CLI v1.5.0*
