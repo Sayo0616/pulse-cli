@@ -92,29 +92,30 @@ def test_make_issue_content():
     assert "**队列：** questions" in content
     assert "## 问题描述" in content
 
-
 def test_parse_issue_file():
     from mai.issue import parse_issue_file
     import tempfile
+    from pathlib import Path
     with tempfile.TemporaryDirectory() as tmpdir:
         f = Path(tmpdir) / "REQ-001.md"
         f.write_text(
             "# [REQ-001] Test\n\n"
-            "**发起方：** alice\n"
-            "**处理方：** alice\n"
+            "**发起方：** @alice\n"
+            "**处理方：** @bob\n"
             "**创建时间：** 2026-04-19T10:00:00\n"
             "**状态：** 🔓 open\n"
             "**队列：** questions\n\n"
             "---\n\n"
             "## 问题描述\n\nTest description.\n\n"
-            "## 关联上下文\n\n.\n\n"
-            "## 处理记录\n\n- [2026-04-19T10:00:00] @alice: 创建\n"
-        )
+        , encoding="utf-8")
         data = parse_issue_file(f)
         assert data["id"] == "REQ-001"
         assert data["title"] == "Test"
+        assert data["creator"] == "alice"
+        assert data["owner"] == "bob"
         assert data["status"] == "open"
-        assert data["owner"] == "alice"
+        assert data["queue"] == "questions"
+
         assert "Test description" in data["description"]
 
 
@@ -186,6 +187,59 @@ def test_ensure_mai_structure():
         assert (mai / "history").exists()
         assert (mai / "events").exists()
         assert (root / "async").exists()
+
+def test_cmd_agent_add():
+    from mai.agent import cmd_agent_add
+    from mai.config import load_config
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = Path(tmpdir)
+        (root / ".mai").mkdir()
+        (root / ".mai" / "config.json").write_text("{}", encoding="utf-8")
+        
+        cmd_agent_add(root, "programmer")
+        config = load_config(root)
+        assert "programmer" in config["agents"]
+        # REQ-V1.6-003: queue name should be 'programmer' not 'programmer-tasks'
+        assert "programmer" in config["queues"]
+        assert config["queues"]["programmer"]["handler"] == "programmer"
+
+def test_make_issue_content_with_creator():
+    from mai.issue import make_issue_content
+    content = make_issue_content(
+        issue_id="REQ-001",
+        queue="questions",
+        title="Test",
+        owner="alice",
+        creator="bob"
+    )
+    assert "**发起方：** @bob" in content
+    assert "**处理方：** @alice" in content
+
+def test_daily_summary_concurrent_write():
+    from mai.daily_summary import daily_summary_trigger, daily_summary_write, _read_status, get_daily_order
+    import tempfile
+    import os
+    from mai.config import save_config
+    
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = Path(tmpdir)
+        (root / ".mai").mkdir()
+        save_config(root, {
+            "agents": {"a1": {}, "a2": {}},
+            "queues": {"q": {"handler": "a1"}},
+            "daily_summary_order": ["a1", "a2"]
+        })
+        
+        daily_summary_trigger(root)
+        
+        # In v1.6, any participant can write anytime
+        daily_summary_write(root, "a2", "a2 summary")
+        daily_summary_write(root, "a1", "a1 summary")
+        
+        status = _read_status(root)
+        assert status["status"]["a1"] == "written"
+        assert status["status"]["a2"] == "written"
 
 
 # ─────────────────────────────────────────────

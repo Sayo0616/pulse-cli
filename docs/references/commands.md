@@ -14,7 +14,7 @@
 | `issue reopen <issue-id> <reason>` | 重新打开已完成的 issue（记录原因） |
 | `issue status <issue-id>` | 查看 issue 状态历史时间线 |
 | `issue amend <issue-id> <remark>` | 补充说明或备注 |
-| `issue list [queue]` | 列出队列中的所有 issue |
+| `issue list [queue]` | 列出 Issue（含状态图标、锁持有者及 SLA 过期提示） |
 | `issue show <issue-id>` | 查看 issue 详情 |
 | `issue escalate <issue-id>` | 将 issue 升级到上级处理 |
 
@@ -51,7 +51,7 @@
 | `daily-summary trigger` | 触发今日摘要轮转 |
 | `daily-summary status` | 查看当前轮次进度 |
 | `daily-summary reset` | 重置今日轮次（删除 status.json） |
-| `daily-summary write <agent> <content...>` | 写入指定 Agent 的摘要内容（按顺序） |
+| `daily-summary write <agent> <content...>` | 写入摘要（状态驱动，不限顺序，需先 trigger） |
 | `daily-summary read [<agent>|.|--all]` | 读取摘要，`.` 表示当前 Agent，`--all` 读取全部 |
 
 ## escalation 子命令
@@ -76,7 +76,7 @@
 | `init` | 在当前目录初始化 mai-cli 项目（不接受参数） |
 | `project init [project-name]` | 在指定路径初始化项目，name 可选 |
 | `agent list` | 列出所有已注册的 Agent |
-| `agent add <name> [--heartbeat-minutes 30]` | 注册新 Agent 并创建默认任务队列 |
+| `agent add <name> [--heartbeat-minutes 30]` | 注册新 Agent 并创建同名默认任务队列 |
 
 ## status 命令
 

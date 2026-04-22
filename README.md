@@ -13,7 +13,7 @@ Mai is a command-line tool that coordinates multiple AI agents working on a shar
 - **Atomic flock locks** — race-condition-free claim/complete cycles via POSIX `fcntl`
 - **Queue-based routing** — issues route to the right agent with configurable SLA per queue
 - **Heartbeat-aware guardian** — stale locks auto-release after `heartbeat × 1.5` minutes
-- **Event-driven daily summary** — ordered turn-taking with idempotent trigger/collect
+- **Event-driven daily summary** — concurrently write summaries with idempotent trigger/collect
 - **Async mirror** — `.mai/` internal store syncs to `async/` for human visibility
 - **Configurable via JSON** — all rules externalized to `config.json`; no code changes needed
 - **Dual output format** — `--format json` for machine consumption, text for humans
@@ -92,7 +92,7 @@ mai --project MyProject queue check
 
 **Lock protocol**: When an agent claims an issue, Mai acquires an `flock(2)`-based file lock. The lock expires after `heartbeat × 1.5` minutes if the agent fails to heartbeat. The `lock guardian` cron command automatically releases stale locks.
 
-**Daily summary flow**: `trigger` → each agent `write` in order → `collect` merges all summaries into a single report.
+**Daily summary flow**: `trigger` → each agent `write` independently → `collect` merges all summaries into a single report.
 
 ---
 
@@ -213,4 +213,4 @@ MIT License — see [LICENSE](LICENSE) for the full text.
 
 ---
 
-*Mai CLI v1.5.0*
+*Mai CLI v1.6.0*

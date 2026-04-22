@@ -40,11 +40,10 @@ def cmd_agent_add(project_root: Path, name: str, heartbeat_minutes: int = 30):
 
     # 4. Create Default Queue
     queues = config.get("queues", {})
-    q_name = f"{normalized_name}-tasks"
-    
+    q_name = normalized_name
+
     # Generate id_prefix: first 3 chars upper, or all if < 3
-    prefix = normalized_name[:3].upper()
-    
+    prefix = normalized_name[:3].upper()    
     queues[q_name] = {
         "handler": normalized_name,
         "sla_minutes": None,

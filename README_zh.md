@@ -22,7 +22,7 @@ mai — 协作元数据命令化 · flock 原子锁 · 并发安全写入 · JSO
 - **📋 标准化命令** — 覆盖 Issue 生命周期、队列扫描、锁管理、审计日志、每日汇总
 - **📁 双层存储结构** — `.mai/` 作为内部真实数据源，`async/` 作为人类可视化镜像
 - **⚙️ JSON 配置外部化** — 队列 SLA、Agent 心跳频率、Issue ID 前缀全部在 `config.json`
-- **🔄 并发安全每日汇总** — 引入 `fcntl` 保护，支持多 Agent 同时写入日报，自动闭环周期
+- **🔄 并发安全每日汇总** — 引入 `fcntl` 保护，支持多 Agent 同时写入日报，自动收集已有的摘要生成报告
 - **✅ 幂等优先** — 所有写操作重复执行不破坏状态
 - **📦 零外部依赖** — 仅 Python 3 标准库，部署简单
 
@@ -58,7 +58,7 @@ mai init
 ```bash
 mai agent add alice --heartbeat-minutes 30
 # ✅ Agent 'alice' registered.
-# ✅ Default queue created: alice-tasks
+# ✅ Default queue created: alice
 ```
 
 ### 3. 创建 Issue
@@ -172,7 +172,7 @@ mai [-v|--version] [--project <项目名>] [--format json|text] [--dry-run] <子
 | `mai daily-summary trigger` | 触发每日汇报事件 |
 | `mai daily-summary status` | 查看当前轮次进度 |
 | `mai daily-summary reset` | 重置今日轮次 |
-| `mai daily-summary write <agent> <内容>` | 写入日报（按顺序，需先 trigger） |
+| `mai daily-summary write <agent> <内容>` | 写入日报（需先 trigger） |
 | `mai daily-summary read [<agent>|.|--all]` | 读取日报、查看进度或生成汇总报告 |
 
 ### 其他
@@ -221,7 +221,7 @@ mai [-v|--version] [--project <项目名>] [--format json|text] [--dry-run] <子
 ...
 ---
 
-*Mai CLI v1.5.0 — 核心基础与体验增强版*
+*Mai CLI v1.6.0 — 增强协作版*
 
 | 0 | 成功 |
 | 1 | 一般错误（参数错误、Issue 未找到等） |
@@ -275,4 +275,4 @@ MIT License — 详见 [LICENSE](./LICENSE)
 
 ---
 
-*Mai CLI v1.5.0*
+*Mai CLI v1.6.0*

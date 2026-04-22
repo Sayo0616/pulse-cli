@@ -8,6 +8,7 @@ from typing import Optional, List, Dict, Any
 
 from .config import get_queue_sla, get_status_emoji, get_mai_dir
 from .issue import read_issue, parse_issue_file
+from .lock import check_lock
 
 
 def list_issues_in_queue(project_root: Path, queue: str,
@@ -20,23 +21,50 @@ def list_issues_in_queue(project_root: Path, queue: str,
 
     issues = []
     queue_sla = get_queue_sla(project_root)
+    status_emoji = get_status_emoji(project_root)
+
     for f in sorted(queue_dir.glob("*.md")):
         data = parse_issue_file(f)
         data["queue"] = queue
-        if overdue_only and queue in queue_sla:
-            sla_owner, sla_hours = queue_sla[queue]
-            if sla_hours is not None:
-                created_str = data.get("created", "")
-                if created_str:
-                    try:
-                        created_dt = datetime.fromisoformat(created_str)
-                        deadline = created_dt + timedelta(hours=sla_hours)
-                        if datetime.now() > deadline:
-                            issues.append(data)
-                    except Exception:
-                        issues.append(data)
-                else:
-                    issues.append(data)
+        
+        # Enrich with Lock & SLA info
+        issue_id = data["id"]
+        li = check_lock(project_root, issue_id)
+        data["lock"] = {
+            "held": bool(li),
+            "holder": li["holder"] if li else None,
+            "stale": li["stale"] if li else False,
+            "timestamp": li["timestamp"] if li else None
+        }
+
+        data["status_emoji"] = status_emoji.get(data["status"], "🔓")
+
+        deadline_str = data.get("sla_deadline")
+        data["sla_expired"] = False
+        if deadline_str:
+            try:
+                dl = datetime.fromisoformat(deadline_str)
+                if dl < datetime.now():
+                    data["sla_expired"] = True
+            except Exception:
+                pass
+        elif queue in queue_sla:
+            # Fallback to computing from created
+            _, sla_hours = queue_sla[queue]
+            created_str = data.get("created", "")
+            if sla_hours is not None and created_str:
+                try:
+                    created_dt = datetime.fromisoformat(created_str)
+                    dl = created_dt + timedelta(hours=sla_hours)
+                    data["sla_deadline"] = dl.isoformat()
+                    if dl < datetime.now():
+                        data["sla_expired"] = True
+                except Exception:
+                    pass
+
+        if overdue_only:
+            if data["sla_expired"]:
+                issues.append(data)
         else:
             issues.append(data)
     return issues
@@ -46,7 +74,6 @@ def cmd_issue_list(project_root: Path, queue: Optional[str]):
     from .mai import out, out_json, ensure_mai_structure, GLOBAL
     ensure_mai_structure(project_root)
     queue_sla = get_queue_sla(project_root)
-    status_emoji = get_status_emoji(project_root)
 
     if queue:
         queues = [queue]
@@ -57,8 +84,18 @@ def cmd_issue_list(project_root: Path, queue: Optional[str]):
     for q in queues:
         issues = list_issues_in_queue(project_root, q)
         results[q] = [
-            {"id": iss["id"], "title": iss["title"], "status": iss["status"],
-             "owner": iss.get("owner", ""), "created": iss.get("created", "")}
+            {
+                "id": iss["id"],
+                "title": iss["title"],
+                "status": iss["status"],
+                "status_emoji": iss.get("status_emoji", ""),
+                "owner": iss.get("owner", ""),
+                "creator": iss.get("creator", ""),
+                "created": iss.get("created", ""),
+                "sla_deadline": iss.get("sla_deadline", ""),
+                "sla_expired": iss.get("sla_expired", False),
+                "lock": iss.get("lock", {"held": False})
+            }
             for iss in issues
         ]
 
@@ -66,12 +103,17 @@ def cmd_issue_list(project_root: Path, queue: Optional[str]):
         out_json({"ok": True, "command": "issue list", "queues": results})
     else:
         for q, issues in results.items():
-            out(f"\n## Queue: {q}")
+            sla_info = queue_sla.get(q, ("", None))
+            sla_str = f" (SLA: {sla_info[0]}/{sla_info[1]}h)" if sla_info[1] else ""
+            out(f"\n## Queue: {q}{sla_str} - {len(issues)} issues")
             if not issues:
                 out("  (empty)")
             for iss in issues:
-                emoji = status_emoji.get(iss["status"], "")
-                out(f"  [{iss['id']}] {emoji} {iss['title']} - owner: {iss['owner']}")
+                emoji = iss.get("status_emoji", "🔓")
+                lock_icon = "🔄" if iss["lock"]["held"] else "🔓"
+                lock_info = f" [{lock_icon} {iss['lock']['holder'] or '(无)'}]"
+                expired = " ⚠️已过期" if iss["sla_expired"] else ""
+                out(f"  [{iss['id']}] {emoji} {iss['status']:12} {iss['title']}{lock_info} SLA:{iss['sla_deadline']}{expired}")
 
 
 def cmd_issue_show(project_root: Path, issue_id: str):

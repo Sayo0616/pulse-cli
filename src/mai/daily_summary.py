@@ -146,26 +146,21 @@ def daily_summary_write(project_root: Path, agent: str, content: str):
         out(f"Agent '{agent}' already submitted for today.", command="daily-summary write", idempotent=True)
         return
 
-    next_up = None
-    for p in order:
-        if agent_status.get(p) == "pending":
-            next_up = p
-            break
-    
-    if next_up != agent:
-        err(f"It's not your turn. Current turn: {next_up}.", 1, error="NOT_YOUR_TURN", hint="Run 'mai daily-summary status' to see full round status.")
-        return
-
     mai = get_mai_dir(project_root)
     lock_file = mai / "events" / DAILY_LOCK_FILE
     lock_file.parent.mkdir(parents=True, exist_ok=True)
 
     with open(lock_file, "w") as f:
         try:
+            import fcntl
             fcntl.flock(f.fileno(), fcntl.LOCK_EX)
             status = _read_status(project_root)
             agent_status = status.get("status", {})
-            
+
+            if agent_status.get(agent) == "written":
+                 out(f"Agent '{agent}' already submitted for today.", command="daily-summary write", idempotent=True)
+                 return
+
             today = datetime.now().strftime("%Y-%m-%d")
 
             if not GLOBAL.dry_run:
@@ -186,16 +181,6 @@ def daily_summary_write(project_root: Path, agent: str, content: str):
             fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
     out(f"Daily summary written for {agent}.", command="daily-summary write", agent=agent)
-    
-    new_next = None
-    for p in order:
-        if agent_status.get(p) == "pending":
-            new_next = p
-            break
-    if new_next:
-        out(f"Next up: {new_next}")
-    else:
-        out("🏁 All daily summaries for today are complete!")
 
 
 def daily_summary_status(project_root: Path):
@@ -278,7 +263,7 @@ def daily_summary_collect(project_root: Path) -> DailySummaryResult:
         lines = [f"=== Daily Summary Report - {today} ==="]
         for agent in order:
             lines.append(f"\n## {agent.title()}")
-            lines.append(summaries.get(agent, "") or "(no summary)")
+            lines.append(summaries.get(agent, "") or "（无摘要）")
         out("\n".join(lines), command="daily-summary read --all")
 
     return DailySummaryResult(date=today, summaries=summaries, is_all=True)

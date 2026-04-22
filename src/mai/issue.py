@@ -48,6 +48,7 @@ def make_issue_content(
     timeline: Optional[List[str]] = None,
     escalated_blocker_id: str = "",
     project_root: Optional[Path] = None,
+    creator: str = "",
 ) -> str:
     """Build a spec-compliant issue markdown file."""
     now = datetime.now().isoformat()
@@ -63,11 +64,12 @@ def make_issue_content(
         sla_deadline = sla_dt.isoformat()
 
     owner_field = owner or owner_sla
+    creator_field = creator or owner_field
 
     lines = [
         f"# [{issue_id}] {title}",
         "",
-        f"**发起方：** @{owner_field}",
+        f"**发起方：** @{creator_field}",
         f"**处理方：** @{owner_field}",
         f"**创建时间：** {now}",
         f"**状态：** {emoji} {status}",
@@ -111,6 +113,7 @@ def parse_issue_file(path: Path) -> Dict[str, Any]:
         "title":              "",
         "status":             "open",
         "owner":              "",
+        "creator":            "",
         "ref":                "",
         "escalated_blocker_id": "",
         "created":            "",
@@ -134,8 +137,12 @@ def parse_issue_file(path: Path) -> Dict[str, Any]:
         m = re.match(r"\*\*([^：]+)：\*\*\s*(.+)", line)
         if m:
             key, val = m.group(1).strip(), m.group(2).strip()
+            # Clean @ prefix if exists
+            if val.startswith("@"):
+                val = val[1:]
+
             key_map = {
-                "发起方":            "owner",
+                "发起方":            "creator",
                 "处理方":            "owner",
                 "创建时间":          "created",
                 "状态":              "status",
@@ -243,6 +250,7 @@ def cmd_issue_new(project_root: Path, queue: str, title: str, ref: Optional[str]
     ensure_mai_structure(project_root)
     issue_id = next_issue_id(project_root, queue)
     owner, _ = queue_sla[queue]
+    agent = os.environ.get("MAI_AGENT", os.environ.get("AGENT_NAME", "unknown"))
 
     content = make_issue_content(
         issue_id=issue_id,
@@ -252,6 +260,7 @@ def cmd_issue_new(project_root: Path, queue: str, title: str, ref: Optional[str]
         owner=owner,
         ref=ref or "",
         project_root=project_root,
+        creator=agent,
     )
 
     if GLOBAL.dry_run:
@@ -262,7 +271,7 @@ def cmd_issue_new(project_root: Path, queue: str, title: str, ref: Optional[str]
     fpath = issue_file_path(project_root, queue, issue_id)
     fpath.write_text(content, encoding="utf-8")
     sync_to_async(fpath, project_root)
-    write_history(project_root, "system", "issue_new",
+    write_history(project_root, agent, "issue_new",
                   f"Issue {issue_id} created in {queue}: {title}", "open")
 
     out(f"Issue {issue_id} created in queue '{queue}'",
