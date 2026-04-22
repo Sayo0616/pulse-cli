@@ -221,7 +221,7 @@ mai [-v|--version] [--project <项目名>] [--format json|text] [--dry-run] <子
 ...
 ---
 
-*Mai CLI v1.6.0 — 增强协作版*
+*Mai CLI v1.6.1 — 增强协作版*
 
 | 0 | 成功 |
 | 1 | 一般错误（参数错误、Issue 未找到等） |
@@ -275,4 +275,4 @@ MIT License — 详见 [LICENSE](./LICENSE)
 
 ---
 
-*Mai CLI v1.6.0*
+*Mai CLI v1.6.1*

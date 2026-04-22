@@ -40,7 +40,7 @@
 
 ## daily_summary_order
 
-数组，定义每日摘要的轮转顺序。每个 Agent 按顺序在各自的窗口内调用 `daily-summary write` 写入摘要。
+数组，定义每日摘要的参与者列表。触发 trigger 后，每个 Agent 独立调用 `daily-summary write` 写入摘要。
 
 ## 兼容性别名字段
 

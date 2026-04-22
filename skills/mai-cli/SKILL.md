@@ -89,7 +89,7 @@ mai --project <path> daily-summary status
 # 重置今日轮次（如需重新来过）
 mai --project <path> daily-summary reset
 
-# 写入当前 Agent 的摘要内容（需按顺序提交）
+# 4. 写入当前 Agent 的摘要内容（不限顺序，需先 trigger）
 mai --project <path> daily-summary write <agent> <content...>
 
 # 读取摘要（<agent> / . 当前agent / --all 全部）
