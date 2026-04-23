@@ -188,9 +188,19 @@ def parse_issue_file(path: Path) -> Dict[str, Any]:
     data["description"] = sections.get("问题描述", "")
     data["context"] = sections.get("关联上下文", "")
     timeline_str = sections.get("处理记录", "")
-    data["timeline"] = [
-        l.strip("- ") for l in timeline_str.splitlines() if l.strip().startswith("- [")
-    ]
+    
+    timeline = []
+    current_entry = []
+    for line in timeline_str.splitlines():
+        if line.strip().startswith("- ["):
+            if current_entry:
+                timeline.append("\n".join(current_entry))
+            current_entry = [line.strip("- ")]
+        elif line.strip() and current_entry:
+            current_entry.append(line.strip())
+    if current_entry:
+        timeline.append("\n".join(current_entry))
+    data["timeline"] = timeline
 
     return data
 
@@ -230,13 +240,13 @@ def _update_issue_file(project_root: Path, data: Dict[str, Any], status: str, re
     content = fpath.read_text("utf-8")
 
     # Update status
-    content = re.sub(r"^\*\*状态：\*\*.*", f"**状态：** {emoji} {status}", content, flags=re.MULTILINE)
+    content = re.sub(r"^\s*\*\*状态[：:].*", f"**状态：** {emoji} {status}", content, flags=re.MULTILINE)
 
     # Update owner if provided
-    if new_owner:
+    if new_owner is not None:
         if new_owner.startswith("@"):
             new_owner = new_owner[1:]
-        content = re.sub(r"^\*\*处理方：\*\*.*", f"**处理方：** @{new_owner}", content, flags=re.MULTILINE)
+        content = re.sub(r"^\s*\*\*处理方[：:].*", f"**处理方：** @{new_owner}", content, flags=re.MULTILINE)
 
     # Update timeline
     timeline_entry = f"[{now}] @{agent}: {status}"
@@ -503,7 +513,18 @@ def cmd_issue_submit_to_creator(project_root: Path, issue_id: str) -> None:
 
     _check_lock_for_action(project_root, issue_id, agent)
 
-    creator = issue.get("creator", "unknown")
+    creator = issue.get("creator")
+    if not creator:
+        # Robust fallback: find creator from last timeline entry (oldest)
+        timeline = issue.get("timeline", [])
+        if timeline:
+            first_entry = timeline[-1]
+            m = re.match(r"^\[.*?\]\s+@([^:]+):", first_entry)
+            if m:
+                creator = m.group(1).strip()
+    
+    creator = creator or "unknown"
+
     if not GLOBAL.dry_run:
         release_lock(project_root, issue_id)
         _update_issue_file(project_root, issue, "OPEN", remark=f"提交给创建人 @{creator} 确认", new_owner=creator)
@@ -543,8 +564,20 @@ def cmd_issue_reject(project_root: Path, issue_id: str, reason: str) -> None:
 
     _check_lock_for_action(project_root, issue_id, agent)
 
+    # Find previous owner from timeline (last agent who is not the creator or current user)
+    previous_owner = "unknown"
+    creator = issue.get("creator")
+    timeline = issue.get("timeline", [])
+    for entry in reversed(timeline):
+        m = re.match(r"^\[.*?\]\s+@([^:]+):", entry)
+        if m:
+            entry_agent = m.group(1).strip()
+            if entry_agent != agent and entry_agent != creator:
+                previous_owner = entry_agent
+                break
+
     if not GLOBAL.dry_run:
         release_lock(project_root, issue_id)
-        _update_issue_file(project_root, issue, "OPEN", remark=f"退回重做：{reason}")
+        _update_issue_file(project_root, issue, "OPEN", remark=f"退回重做：{reason}", new_owner=previous_owner)
 
     out(f"Issue {issue_id} rejected: {reason}", command="issue reject", issue_id=issue_id, reason=reason)

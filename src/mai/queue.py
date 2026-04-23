@@ -36,7 +36,7 @@ def cmd_queue_check(project_root: Path, queue: Optional[str], overdue: bool, sho
         
         # REQ-4: Filter by handler
         if handler:
-            issues = [iss for iss in issues if iss.get("owner") == handler]
+            issues = [iss for iss in issues if handler.lower() in iss.get("owner", "").lower()]
 
         sla_owner, sla_hours = queue_sla.get(q, ("unknown", None))
         results[q] = {

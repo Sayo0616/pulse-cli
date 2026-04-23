@@ -92,23 +92,8 @@ def cmd_issue_list(project_root: Path, queue: Optional[str], handler: Optional[s
     for q in queues:
         issues = list_issues_in_queue(project_root, q)
         if handler:
-            issues = [iss for iss in issues if iss.get("owner") == handler]
-
-        results[q] = [
-            {
-                "id": iss["id"],
-                "title": iss["title"],
-                "status": iss["status"],
-                "status_emoji": iss.get("status_emoji", ""),
-                "owner": iss.get("owner", ""),
-                "creator": iss.get("creator", ""),
-                "created": iss.get("created", ""),
-                "sla_deadline": iss.get("sla_deadline", ""),
-                "sla_expired": iss.get("sla_expired", False),
-                "lock": iss.get("lock", {"held": False})
-            }
-            for iss in issues
-        ]
+            issues = [iss for iss in issues if handler.lower() in iss.get("owner", "").lower()]
+        results[q] = issues
 
     if GLOBAL.format == "json":
         out_json({"ok": True, "command": "issue list", "queues": results})
