@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.7.0 (2026-04-23)
+- **REQ: 多步协作流转 (Multistage Flow)** — 新增 `issue transfer`, `issue submit-to-creator`, `issue confirm`, `issue reject` 四大命令，支持从“创建人 → 处理人 A → 处理人 B → 创建人确认”的完整闭环流程。
+- **SEC: 锁所有权校验** — 在执行转交、提交、完成、确认等敏感操作前，强制校验当前 Agent 是否持有该 Issue 的 flock 锁，防止越权操作，并保障状态流转的一致性。
+- **UI: 智能队列检索** — `queue check` 默认隐藏已完成任务；新增 `--all` 展示全部，`--handler @agent` 过滤特定处理人任务。
+- **UI: 超期项筛选** — 为 `queue check` 新增 `--overdue` 命令行标志，支持快速定位 SLA 超时的 Issue。
+- **UX: 前缀自动归一化** — `issue list` 和 `queue check` 的 `--handler` 参数现在支持自动剥离 `@` 前缀（如输入 `@alice` 自动转为 `alice`）。
+- **AUDIT: 审计记录修正** — 修正了 Issue 初始创建时的 Timeline 记录，确保其归属于 `creator` 而非默认处理人。
+- **稳定性: 状态机加固** — 为所有 `issue` 操作增加了状态预检查，禁止在 `COMPLETED` 状态下执行无效的状态流转操作，并实现了操作的幂等性提示。
+
 ## v1.6.4 (2026-04-23)
 - **REQ: 指定发起方** — `issue new` 新增 `--creator` 参数，允许显式指定 Issue 发起者身份（默认回退至当前 Agent 环境变量）。
 - **UI: 状态展示优化** — 移除 `mai status` 和 `mai daily-summary status` 中过时的 "Next up" 逻辑，适配并发独立写入模型。

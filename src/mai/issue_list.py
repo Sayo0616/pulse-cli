@@ -75,10 +75,13 @@ def list_issues_in_queue(project_root: Path, queue: str,
     return issues
 
 
-def cmd_issue_list(project_root: Path, queue: Optional[str]):
+def cmd_issue_list(project_root: Path, queue: Optional[str], handler: Optional[str] = None):
     from .mai import out, out_json, ensure_mai_structure, GLOBAL
     ensure_mai_structure(project_root)
     queue_sla = get_queue_sla(project_root)
+
+    if handler and handler.startswith("@"):
+        handler = handler[1:]
 
     if queue:
         queues = [queue]
@@ -88,6 +91,9 @@ def cmd_issue_list(project_root: Path, queue: Optional[str]):
     results = {}
     for q in queues:
         issues = list_issues_in_queue(project_root, q)
+        if handler:
+            issues = [iss for iss in issues if iss.get("owner") == handler]
+
         results[q] = [
             {
                 "id": iss["id"],

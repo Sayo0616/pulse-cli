@@ -127,11 +127,15 @@ mai [-v|--version] [--project <项目名>] [--format json|text] [--dry-run] <子
 
 | 命令 | 说明 |
 |:---|:---|
-| `mai issue new <queue> <标题>` | 创建 Issue，自动分配 ID |
+| `mai issue new <queue> <标题> [--ref <id>] [--creator <name>]` | 创建 Issue，自动分配 ID，可指定发起方 |
 | `mai issue claim <issue-id>` | 认领（获取锁），状态 → IN_PROGRESS |
 | `mai issue block <issue-id> <原因>` | 标记为 BLOCKED（记录原因） |
 | `mai issue unblock <issue-id>` | 解除 BLOCKED，恢复 IN_PROGRESS |
-| `mai issue complete <issue-id> <结论>` | 完成（归档 + 解锁） |
+| `mai issue complete <issue-id> <结论>` | 完成工作（获取结论） |
+| `mai issue transfer <issue-id> <处理人>` | 转交任务（自动释放锁） |
+| `mai issue submit-to-creator <issue-id>` | 提交给发起方确认 |
+| `mai issue confirm <issue-id>` | 发起方确认完成（状态 → COMPLETED） |
+| `mai issue reject <issue-id> <原因>` | 发起方拒绝结论（状态恢复 OPEN） |
 | `mai issue reopen <issue-id> <原因>` | 重新打开已完成 Issue |
 | `mai issue status <issue-id>` | 查看状态历史时间线 |
 | `mai issue amend <issue-id> <备注>` | 追加修订记录 |
@@ -143,7 +147,7 @@ mai [-v|--version] [--project <项目名>] [--format json|text] [--dry-run] <子
 
 | 命令 | 说明 |
 |:---|:---|
-| `mai queue check [queue] [--overdue]` | 扫描队列，可选只显示超期项 |
+| `mai queue check [queue] [--all] [--handler @name] [--overdue]` | 扫描队列，支持按状态、处理人过滤 |
 | `mai queue blockers` | 合并输出所有 blocker |
 | `mai queue create <queue> --owner <agent> [--sla <小时>]` | 创建新队列 |
 
@@ -275,4 +279,4 @@ MIT License — 详见 [LICENSE](./LICENSE)
 
 ---
 
-*Mai CLI v1.6.4*
+*Mai CLI v1.7.0*

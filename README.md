@@ -105,11 +105,15 @@ mai [-v|--version] [--project <path>] [--format json|text] [--dry-run] <subcomma
 
 ### Issue
 ```
-mai issue new <queue> <title> [--ref REQ-XXX]
+mai issue new <queue> <title> [--ref REQ-XXX] [--creator NAME]
 mai issue claim <issue-id>
 mai issue block <issue-id> <reason>
 mai issue unblock <issue-id>
 mai issue complete <issue-id> <conclusion>
+mai issue transfer <issue-id> <next-handler>
+mai issue submit-to-creator <issue-id>
+mai issue confirm <issue-id>
+mai issue reject <issue-id> <reason>
 mai issue reopen <issue-id> <reason>
 mai issue status <issue-id>
 mai issue amend <issue-id> <remark>
@@ -120,7 +124,7 @@ mai issue escalate <issue-id>
 
 ### Queue
 ```
-mai queue check [queue] [--overdue]
+mai queue check [queue] [--all] [--handler @name] [--overdue]
 mai queue blockers
 mai queue create <queue> --owner <agent> [--sla <hours>]
 ```
@@ -213,4 +217,4 @@ MIT License — see [LICENSE](LICENSE) for the full text.
 
 ---
 
-*Mai CLI v1.6.4*
+*Mai CLI v1.7.0*

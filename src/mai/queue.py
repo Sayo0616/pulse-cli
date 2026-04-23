@@ -9,7 +9,7 @@ from .config import get_queue_sla, get_status_emoji, get_mai_dir, get_blockers_q
 from .issue_list import list_issues_in_queue
 
 
-def cmd_queue_check(project_root: Path, queue: Optional[str], overdue: bool):
+def cmd_queue_check(project_root: Path, queue: Optional[str], overdue: bool, show_all: bool = False, handler: Optional[str] = None):
     from .mai import out, out_json, ensure_mai_structure, GLOBAL, suggest, err
     ensure_mai_structure(project_root)
     queue_sla = get_queue_sla(project_root)
@@ -24,8 +24,20 @@ def cmd_queue_check(project_root: Path, queue: Optional[str], overdue: bool):
         queues = list(queue_sla.keys())
 
     results = {}
+    if handler and handler.startswith("@"):
+        handler = handler[1:]
+
     for q in queues:
         issues = list_issues_in_queue(project_root, q, overdue_only=overdue)
+        
+        # REQ-2: Hide COMPLETED by default
+        if not show_all:
+            issues = [iss for iss in issues if iss["status"].upper() not in ("COMPLETED", "DONE")]
+        
+        # REQ-4: Filter by handler
+        if handler:
+            issues = [iss for iss in issues if iss.get("owner") == handler]
+
         sla_owner, sla_hours = queue_sla.get(q, ("unknown", None))
         results[q] = {
             "sla_owner": sla_owner,
@@ -47,7 +59,7 @@ def cmd_queue_check(project_root: Path, queue: Optional[str], overdue: bool):
             if not data["issues"]:
                 out("  (empty)")
             for iss in data["issues"]:
-                emoji = status_emoji.get(iss["status"], "")
+                emoji = status_emoji.get(iss["status"].lower(), "")
                 out(f"  [{iss['id']}] {emoji} {iss['title']} "
                     f"(owner: {iss['owner']}, created: {iss['created']})")
 

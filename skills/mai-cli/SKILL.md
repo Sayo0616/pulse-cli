@@ -26,33 +26,32 @@ mai --project <path> issue block <issue-id> <原因>
 # 4. 解除阻塞
 mai --project <path> issue unblock <issue-id>
 
-# 5. 完成 issue（释放锁 + 记录结论）
+# 5. 完成并提交（释放锁 + 记录结论 + 转交 Creator 确认）
 mai --project <path> issue complete <issue-id> <conclusion>
+mai --project <path> issue submit-to-creator <issue-id>
 
-# 6. 如需重开（记录原因）
+# 6. 转交任务（自动释放锁，状态保持为 OPEN）
+mai --project <path> issue transfer <issue-id> <next-handler>
+
+# 7. Creator 确认与反馈
+# 确认完成（状态 → COMPLETED）
+mai --project <path> issue confirm <issue-id>
+# 拒绝结论（恢复为 OPEN 并提供原因）
+mai --project <path> issue reject <issue-id> <原因>
+
+# 8. 如需重开（记录原因）
 mai --project <path> issue reopen <issue-id> <原因>
-
-# 7. 查看状态历史
-mai --project <path> issue status <issue-id>
-
-# 8. 补充说明
-mai --project <path> issue amend <issue-id> <remark>
 ```
 
-## 队列与阻塞
+## 队列与检索
 
 ```
-# 查看队列状态（含 SLA 超时）
-mai --project <path> queue check [queue] [--overdue]
+# 查看队列状态（默认隐藏 COMPLETED）
+# --all 显示全部，--overdue 只看超时，--handler 过滤处理人
+mai --project <path> queue check [queue] [--all] [--overdue] [--handler @agent]
 
-# 查看当前阻塞队列的 issue
-mai --project <path> queue blockers
-
-# 创建新队列
-mai --project <path> queue create <queue> --owner <agent> [--sla <hours>]
-
-# 列出队列中所有 issue
-mai --project <path> issue list [queue]
+# 列表展示 Issue（支持过滤）
+mai --project <path> issue list [queue] [--handler @agent]
 
 # 查看 issue 详情
 mai --project <path> issue show <issue-id>

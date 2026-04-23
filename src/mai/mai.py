@@ -15,7 +15,7 @@ from importlib.metadata import version, PackageNotFoundError
 try:
     __version__ = version("mai-cli")
 except PackageNotFoundError:
-    __version__ = "1.6.4"
+    __version__ = "1.7.0"
 
 from .config import (
     get_mai_dir, get_async_dir, find_project_root,
@@ -165,6 +165,19 @@ def build_parser():
 
     p = iss.add_parser("list", help="List issues")
     p.add_argument("queue", nargs="?", default=None)
+    p.add_argument("--handler", help="Filter by handler (owner)")
+
+    p = iss.add_parser("transfer", help="Transfer issue to another handler")
+    p.add_argument("issue_id"); p.add_argument("next_handler")
+
+    p = iss.add_parser("submit-to-creator", help="Submit issue to creator for confirmation")
+    p.add_argument("issue_id")
+
+    p = iss.add_parser("confirm", help="Confirm issue completion (creator only)")
+    p.add_argument("issue_id")
+
+    p = iss.add_parser("reject", help="Reject and reopen issue (creator only)")
+    p.add_argument("issue_id"); p.add_argument("reason")
 
     p = iss.add_parser("show", help="Show issue")
     p.add_argument("issue_id")
@@ -177,6 +190,9 @@ def build_parser():
     q = queue_sp.add_subparsers(dest="queue_cmd", required=True)
     p = q.add_parser("check", help="Check queue")
     p.add_argument("queue", nargs="?", default=None)
+    p.add_argument("--all", action="store_true", help="Show all issues including COMPLETED")
+    p.add_argument("--handler", help="Filter by handler (owner)")
+    p.add_argument("--overdue", action="store_true", help="Show only overdue issues")
     q.add_parser("blockers", help="Show designer blockers")
     p = q.add_parser("create", help="Create queue")
     p.add_argument("queue")
@@ -310,7 +326,7 @@ def cmd_status(project_root: Path, verbose: bool = False):
         out("\nDaily Summary: Not triggered today.")
 
 
-def dispatch(args):
+def dispatch(args) -> None:
     # Lazy import to avoid circular dependency at module load time
     from .issue import (
         cmd_issue_new, cmd_issue_amend, cmd_issue_claim,
@@ -335,7 +351,8 @@ def dispatch(args):
         project_root = find_project_root(args.project)
         if project_root is None:
              err("Project not found. Run 'mai init'.", 4, error="PROJECT_NOT_FOUND", hint="Run 'mai init' to start a project.")
-        return cmd_status(project_root, getattr(args, "verbose", False))
+        cmd_status(project_root, getattr(args, "verbose", False))
+        return
 
     if args.subcommand not in ["project", "init"] or (args.subcommand == "project" and args.proj_cmd != "init"):
         project_root = find_project_root(args.project)
@@ -374,11 +391,13 @@ def dispatch(args):
         err(str(e), 1, error="INTERNAL_ERROR")
 
 
-def dispatch_issue(args, project_root):
+def dispatch_issue(args, project_root: Path) -> None:
     from .issue import (
         cmd_issue_new, cmd_issue_amend, cmd_issue_claim,
         cmd_issue_complete, cmd_issue_block, cmd_issue_unblock,
         cmd_issue_reopen, cmd_issue_status,
+        cmd_issue_transfer, cmd_issue_submit_to_creator,
+        cmd_issue_confirm, cmd_issue_reject,
     )
     from .issue_list import cmd_issue_list, cmd_issue_show
     if args.issue_cmd == "new":
@@ -398,7 +417,15 @@ def dispatch_issue(args, project_root):
     elif args.issue_cmd == "status":
         cmd_issue_status(project_root, args.issue_id)
     elif args.issue_cmd == "list":
-        cmd_issue_list(project_root, args.queue)
+        cmd_issue_list(project_root, args.queue, getattr(args, "handler", None))
+    elif args.issue_cmd == "transfer":
+        cmd_issue_transfer(project_root, args.issue_id, args.next_handler)
+    elif args.issue_cmd == "submit-to-creator":
+        cmd_issue_submit_to_creator(project_root, args.issue_id)
+    elif args.issue_cmd == "confirm":
+        cmd_issue_confirm(project_root, args.issue_id)
+    elif args.issue_cmd == "reject":
+        cmd_issue_reject(project_root, args.issue_id, args.reason)
     elif args.issue_cmd == "show":
         cmd_issue_show(project_root, args.issue_id)
     elif args.issue_cmd == "escalate":
@@ -406,17 +433,19 @@ def dispatch_issue(args, project_root):
         cmd_issue_escalate(project_root, args.issue_id)
 
 
-def dispatch_queue(args, project_root):
+def dispatch_queue(args, project_root: Path) -> None:
     from .queue import cmd_queue_check, cmd_queue_blockers, cmd_queue_create
     if args.queue_cmd == "check":
-        cmd_queue_check(project_root, args.queue, getattr(args, "overdue", False))
+        cmd_queue_check(project_root, args.queue, getattr(args, "overdue", False),
+                        show_all=getattr(args, "all", False),
+                        handler=getattr(args, "handler", None))
     elif args.queue_cmd == "blockers":
         cmd_queue_blockers(project_root)
     elif args.queue_cmd == "create":
         cmd_queue_create(project_root, args.queue, args.owner, args.sla)
 
 
-def dispatch_lock(args, project_root):
+def dispatch_lock(args, project_root: Path) -> None:
     from .lock import cmd_lock_check, cmd_lock_release, cmd_lock_guardian
     if args.lock_cmd == "check":
         cmd_lock_check(project_root, args.issue_id)
@@ -426,7 +455,7 @@ def dispatch_lock(args, project_root):
         cmd_lock_guardian(project_root)
 
 
-def dispatch_log(args, project_root):
+def dispatch_log(args, project_root: Path) -> None:
     from .log import cmd_log_history, cmd_log_write, cmd_log_undo
     if args.log_cmd == "history":
         cmd_log_history(project_root, args.date, args.agent)
@@ -436,7 +465,7 @@ def dispatch_log(args, project_root):
         cmd_log_undo(project_root)
 
 
-def dispatch_daily_summary(args, project_root):
+def dispatch_daily_summary(args, project_root: Path) -> None:
     from .daily_summary import (
         daily_summary_trigger, daily_summary_write, daily_summary_read,
         daily_summary_status, daily_summary_reset,
@@ -453,19 +482,19 @@ def dispatch_daily_summary(args, project_root):
         daily_summary_reset(project_root)
 
 
-def dispatch_escalation(args, project_root):
+def dispatch_escalation(args, project_root: Path) -> None:
     from .escalation import cmd_escalation_gen
     if args.esc_cmd == "gen":
         cmd_escalation_gen(project_root, args.issue_id)
 
 
-def dispatch_exec(args, project_root):
+def dispatch_exec(args, project_root: Path) -> None:
     from .safe_exec import exec_safe_check
     if args.exec_cmd == "safe-check":
         exec_safe_check(project_root, args.cmd)
 
 
-def dispatch_agent(args, project_root):
+def dispatch_agent(args, project_root: Path) -> None:
     from .agent import cmd_agent_add, cmd_agent_list
     if args.agent_cmd == "add":
         cmd_agent_add(project_root, args.name, args.heartbeat_minutes)

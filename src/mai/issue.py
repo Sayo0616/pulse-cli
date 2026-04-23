@@ -95,8 +95,8 @@ def make_issue_content(
     timeline = timeline or []
     # Add initial creation entry if timeline is empty
     if not timeline:
-        timeline.append(f"[{now}] @{owner_field}: 创建")
-    
+        timeline.append(f"[{now}] @{creator_field}: 创建")
+
     for entry in timeline:
         if entry.startswith("- "):
             lines.append(entry)
@@ -209,8 +209,8 @@ def issue_file_path(project_root: Path, queue: str, issue_id: str) -> Path:
     return get_mai_dir(project_root) / "queues" / queue / f"{issue_id}.md"
 
 
-def _update_issue_file(project_root: Path, data: Dict[str, Any], status: str, remark: Optional[str] = None):
-    """Helper to update issue file status and timeline."""
+def _update_issue_file(project_root: Path, data: Dict[str, Any], status: str, remark: Optional[str] = None, new_owner: Optional[str] = None):
+    """Helper to update issue file status, timeline and optionally owner."""
     if GLOBAL.dry_run:
         return
 
@@ -220,26 +220,31 @@ def _update_issue_file(project_root: Path, data: Dict[str, Any], status: str, re
 
     fpath = Path(data["path"])
     content = fpath.read_text("utf-8")
-    
+
     # Update status
-    content = re.sub(r"\*\*状态：\*\*.*", f"**状态：** {emoji} {status}", content)
-    
+    content = re.sub(r"^\*\*状态：\*\*.*", f"**状态：** {emoji} {status}", content, flags=re.MULTILINE)
+
+    # Update owner if provided
+    if new_owner:
+        if new_owner.startswith("@"):
+            new_owner = new_owner[1:]
+        content = re.sub(r"^\*\*处理方：\*\*.*", f"**处理方：** @{new_owner}", content, flags=re.MULTILINE)
+
     # Update timeline
     timeline_entry = f"[{now}] @{agent}: {status}"
     if remark:
         timeline_entry += f"：{remark}"
-    
+
     content = re.sub(
         r"## 处理记录",
         f"## 处理记录\n- {timeline_entry}",
         content
     )
-    
+
     fpath.write_text(content, encoding="utf-8")
     sync_to_async(fpath, project_root)
-    write_history(project_root, agent, f"issue_{status.lower()}", 
+    write_history(project_root, agent, f"issue_{status.lower()}",
                   f"Issue {data['id']} status changed to {status}", status.lower())
-
 
 # ─────────────────────────────────────────────
 # Issue Commands
@@ -256,6 +261,8 @@ def cmd_issue_new(project_root: Path, queue: str, title: str, ref: Optional[str]
     issue_id = next_issue_id(project_root, queue)
     owner, _ = queue_sla[queue]
     agent = creator or os.environ.get("MAI_AGENT", os.environ.get("AGENT_NAME", "unknown"))
+    if agent.startswith("@"):
+        agent = agent[1:]
 
     content = make_issue_content(
         issue_id=issue_id,
@@ -283,13 +290,16 @@ def cmd_issue_new(project_root: Path, queue: str, title: str, ref: Optional[str]
         command="issue new", issue_id=issue_id, queue=queue, owner=owner)
 
 
-def cmd_issue_claim(project_root: Path, issue_id: str):
+def cmd_issue_claim(project_root: Path, issue_id: str) -> None:
     from .mai import out, err
     agent = os.environ.get("MAI_AGENT", os.environ.get("AGENT_NAME", "unknown"))
 
     issue = read_issue(project_root, issue_id)
     if not issue:
         err(f"Issue {issue_id} not found", 1, error="NOT_FOUND")
+
+    if issue["status"].upper() == "COMPLETED":
+        err(f"Issue {issue_id} is already COMPLETED. Reopen it first if needed.", 1, error="ALREADY_COMPLETED")
 
     lock_info = check_lock(project_root, issue_id)
     if lock_info and lock_info["holder"] == agent and not lock_info["stale"]:
@@ -334,13 +344,18 @@ def cmd_issue_unblock(project_root: Path, issue_id: str):
     out(f"Issue {issue_id} unblocked (Status: IN_PROGRESS).", command="issue unblock", issue_id=issue_id)
 
 
-def cmd_issue_complete(project_root: Path, issue_id: str, conclusion: str):
+def cmd_issue_complete(project_root: Path, issue_id: str, conclusion: str) -> None:
     from .mai import out, err
+    agent = os.environ.get("MAI_AGENT", os.environ.get("AGENT_NAME", "unknown"))
     issue = read_issue(project_root, issue_id)
     if not issue:
         err(f"Issue {issue_id} not found", 1, error="NOT_FOUND")
 
-    agent = os.environ.get("MAI_AGENT", os.environ.get("AGENT_NAME", "unknown"))
+    if issue["status"].upper() == "COMPLETED":
+        out(f"Issue {issue_id} is already COMPLETED.", command="issue complete", idempotent=True)
+        return
+
+    _check_lock_for_action(project_root, issue_id, agent)
 
     if not GLOBAL.dry_run:
         release_lock(project_root, issue_id)
@@ -363,18 +378,22 @@ def cmd_issue_complete(project_root: Path, issue_id: str, conclusion: str):
     out(f"Issue {issue_id} completed.", command="issue complete", issue_id=issue_id, dry_run=GLOBAL.dry_run)
 
 
-def cmd_issue_reopen(project_root: Path, issue_id: str, reason: str):
+def cmd_issue_reopen(project_root: Path, issue_id: str, reason: str) -> None:
     """REQ-017: Reopen a COMPLETED issue."""
     from .mai import out, err
     issue = read_issue(project_root, issue_id)
     if not issue:
         err(f"Issue {issue_id} not found", 1, error="NOT_FOUND")
 
+    if issue["status"].upper() == "OPEN":
+        out(f"Issue {issue_id} is already OPEN.", command="issue reopen", idempotent=True)
+        return
+
     _update_issue_file(project_root, issue, "OPEN", remark=f"重新打开：{reason}")
     out(f"Issue {issue_id} reopened (Status: OPEN).", command="issue reopen", issue_id=issue_id, dry_run=GLOBAL.dry_run)
 
 
-def cmd_issue_status(project_root: Path, issue_id: str):
+def cmd_issue_status(project_root: Path, issue_id: str) -> None:
     """REQ-008: Show issue status history."""
     from .mai import out, err
     issue = read_issue(project_root, issue_id)
@@ -386,7 +405,7 @@ def cmd_issue_status(project_root: Path, issue_id: str):
         out(f"  {entry}")
 
 
-def cmd_issue_amend(project_root: Path, issue_id: str, remark: str):
+def cmd_issue_amend(project_root: Path, issue_id: str, remark: str) -> None:
     from .mai import out, err
     issue = read_issue(project_root, issue_id)
     if not issue:
@@ -396,7 +415,7 @@ def cmd_issue_amend(project_root: Path, issue_id: str, remark: str):
     out(f"Issue {issue_id} amended.", command="issue amend", issue_id=issue_id)
 
 
-def cmd_issue_escalate(project_root: Path, issue_id: str):
+def cmd_issue_escalate(project_root: Path, issue_id: str) -> None:
     from .mai import out, err
     issue = read_issue(project_root, issue_id)
     if not issue:
@@ -436,3 +455,88 @@ def cmd_issue_escalate(project_root: Path, issue_id: str):
 
     out(f"Issue {issue_id} escalated → {new_id} in {queue}.",
         command="issue escalate", original_id=issue_id, new_id=new_id, queue=queue)
+
+def _check_lock_for_action(project_root: Path, issue_id: str, agent: str) -> None:
+    """Ensure current agent holds the lock or it is unlocked/stale before action."""
+    from .mai import err
+    li = check_lock(project_root, issue_id)
+    if li and li["holder"] != agent and not li["stale"]:
+        err(f"Issue {issue_id} is locked by {li['holder']}. Action denied.", 2, error="LOCK_HELD")
+
+
+def cmd_issue_transfer(project_root: Path, issue_id: str, next_handler: str) -> None:
+    from .mai import out, err
+    agent = os.environ.get("MAI_AGENT", os.environ.get("AGENT_NAME", "unknown"))
+    issue = read_issue(project_root, issue_id)
+    if not issue:
+        err(f"Issue {issue_id} not found", 1, error="NOT_FOUND")
+
+    if issue["status"].upper() == "COMPLETED":
+        err(f"Issue {issue_id} is already COMPLETED. Reopen it first if needed.", 1, error="ALREADY_COMPLETED")
+
+    _check_lock_for_action(project_root, issue_id, agent)
+
+    if not GLOBAL.dry_run:
+        release_lock(project_root, issue_id)
+        _update_issue_file(project_root, issue, "OPEN", remark=f"转交给 @{next_handler}", new_owner=next_handler)
+
+    out(f"Issue {issue_id} transferred to {next_handler}.", command="issue transfer", issue_id=issue_id, next_handler=next_handler)
+
+
+def cmd_issue_submit_to_creator(project_root: Path, issue_id: str) -> None:
+    from .mai import out, err
+    agent = os.environ.get("MAI_AGENT", os.environ.get("AGENT_NAME", "unknown"))
+    issue = read_issue(project_root, issue_id)
+    if not issue:
+        err(f"Issue {issue_id} not found", 1, error="NOT_FOUND")
+
+    if issue["status"].upper() == "COMPLETED":
+        err(f"Issue {issue_id} is already COMPLETED. Reopen it first if needed.", 1, error="ALREADY_COMPLETED")
+
+    _check_lock_for_action(project_root, issue_id, agent)
+
+    creator = issue.get("creator", "unknown")
+    if not GLOBAL.dry_run:
+        release_lock(project_root, issue_id)
+        _update_issue_file(project_root, issue, "OPEN", remark=f"提交给创建人 @{creator} 确认", new_owner=creator)
+
+    out(f"Issue {issue_id} submitted to creator {creator}.", command="issue submit-to-creator", issue_id=issue_id, creator=creator)
+
+
+def cmd_issue_confirm(project_root: Path, issue_id: str) -> None:
+    from .mai import out, err
+    agent = os.environ.get("MAI_AGENT", os.environ.get("AGENT_NAME", "unknown"))
+    issue = read_issue(project_root, issue_id)
+    if not issue:
+        err(f"Issue {issue_id} not found", 1, error="NOT_FOUND")
+
+    if issue["status"].upper() == "COMPLETED":
+        out(f"Issue {issue_id} is already COMPLETED.", command="issue confirm", idempotent=True)
+        return
+
+    _check_lock_for_action(project_root, issue_id, agent)
+
+    if not GLOBAL.dry_run:
+        release_lock(project_root, issue_id)
+        _update_issue_file(project_root, issue, "COMPLETED", remark="已由创建人确认完成")
+
+    out(f"Issue {issue_id} confirmed completed.", command="issue confirm", issue_id=issue_id)
+
+
+def cmd_issue_reject(project_root: Path, issue_id: str, reason: str) -> None:
+    from .mai import out, err
+    agent = os.environ.get("MAI_AGENT", os.environ.get("AGENT_NAME", "unknown"))
+    issue = read_issue(project_root, issue_id)
+    if not issue:
+        err(f"Issue {issue_id} not found", 1, error="NOT_FOUND")
+
+    if issue["status"].upper() == "COMPLETED":
+        err(f"Issue {issue_id} is already COMPLETED. Use 'issue reopen' instead.", 1, error="ALREADY_COMPLETED")
+
+    _check_lock_for_action(project_root, issue_id, agent)
+
+    if not GLOBAL.dry_run:
+        release_lock(project_root, issue_id)
+        _update_issue_file(project_root, issue, "OPEN", remark=f"退回重做：{reason}")
+
+    out(f"Issue {issue_id} rejected: {reason}", command="issue reject", issue_id=issue_id, reason=reason)
