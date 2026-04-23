@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.8.0 (2026-04-24)
+- **REQ: Issue 优先级支持 (P0/P1/P2)** — 为 Issue 引入了优先级字段。支持通过 `mai issue new --priority P0|P1|P2` 指定紧急程度（默认为 P2）。
+- **REQ: 优先级排序逻辑** — `issue list` 和 `queue check` 现在全局按优先级升序（P0→P1→P2）排序，同优先级内按创建时间升序。
+- **REQ: 冲突升级优先级归一化** — `issue escalate` 生成的冲突升级 Issue 现在默认设置为 P0 最高优先级。
+- **Fix: `queue check --handler` 格式修正** — 指定处理人过滤时，输出格式优化为更紧凑的单行模式，并自动隐藏冗余的队列头。
+- **Fix: 处理人匹配鲁棒性** — 修复了 `--handler` 匹配时对 `@` 前缀处理不一致的问题。现在无论输入参数还是 Issue 文件中的 `owner` 字段是否包含 `@`，均能正确实现不区分大小写的匹配。
+
 ## v1.7.2 (2026-04-23)
 - **Fix: Reject Handler Reversion** — 修复了 `issue reject` 时处理人没有正确回退的问题。现在会根据 Timeline 记录自动将 Issue 归还给上一个处理人。
 - **Fix: Multi-line Timeline Parsing** — 修复了 `issue show` 无法显示处理记录中换行内容的问题，现在能正确解析并保留多行备注。

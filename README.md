@@ -105,7 +105,7 @@ mai [-v|--version] [--project <path>] [--format json|text] [--dry-run] <subcomma
 
 ### Issue
 ```
-mai issue new <queue> <title> [--ref REQ-XXX] [--creator NAME]
+mai issue new <queue> <title> [--ref REQ-XXX] [--creator NAME] [--priority P0|P1|P2]
 mai issue claim <issue-id>
 mai issue block <issue-id> <reason>
 mai issue unblock <issue-id>
@@ -217,4 +217,4 @@ MIT License — see [LICENSE](LICENSE) for the full text.
 
 ---
 
-*Mai CLI v1.7.0*
+*Mai CLI v1.8.0*

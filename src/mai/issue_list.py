@@ -72,6 +72,11 @@ def list_issues_in_queue(project_root: Path, queue: str,
                 issues.append(data)
         else:
             issues.append(data)
+
+    # REQ-1: Sort by priority (P0, P1, P2) then by created time
+    priority_order = {"P0": 0, "P1": 1, "P2": 2}
+    issues.sort(key=lambda x: (priority_order.get(x.get("priority", "P2").upper(), 2), x.get("created", "")))
+
     return issues
 
 
@@ -106,10 +111,11 @@ def cmd_issue_list(project_root: Path, queue: Optional[str], handler: Optional[s
                 out("  (empty)")
             for iss in issues:
                 emoji = iss.get("status_emoji", "❓")
+                priority = f"[{iss.get('priority', 'P2')}]"
                 lock_icon = "🔄" if iss["lock"]["held"] else "🔓"
                 lock_info = f" [{lock_icon} {iss['lock']['holder'] or '(无)'}]"
                 expired = " ⚠️已过期" if iss["sla_expired"] else ""
-                out(f"  [{iss['id']}] {emoji} {iss['status']:12} {iss['title']}{lock_info} SLA:{iss['sla_deadline']}{expired}")
+                out(f"  [{iss['id']}] {priority} {emoji} {iss['status']:12} {iss['title']}{lock_info} SLA:{iss['sla_deadline']}{expired}")
 
 
 def cmd_issue_show(project_root: Path, issue_id: str):
@@ -128,6 +134,7 @@ def cmd_issue_show(project_root: Path, issue_id: str):
         out(f"\n=== Issue {issue['id']} ===")
         out(f"Queue:    {issue.get('queue', '')}")
         out(f"Title:    {issue['title']}")
+        out(f"Priority: {issue.get('priority', 'P2')}")
         out(f"Status:   {issue.get('status', '')}")
         out(f"Owner:    {issue.get('owner', '')}")
         out(f"Created:  {issue.get('created', '')}")

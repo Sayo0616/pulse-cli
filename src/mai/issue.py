@@ -57,6 +57,7 @@ def make_issue_content(
     escalated_blocker_id: str = "",
     project_root: Optional[Path] = None,
     creator: str = "",
+    priority: str = "P2",
 ) -> str:
     """Build a spec-compliant issue markdown file."""
     now = datetime.now().isoformat()
@@ -65,6 +66,10 @@ def make_issue_content(
         emoji = get_status_emoji(project_root).get(status.lower(), "❓")
     else:
         emoji = DEFAULT_EMOJI.get(status.lower(), "❓")
+
+    priority_map = {"P0": "🔴", "P1": "🟡", "P2": "🟢"}
+    p_emoji = priority_map.get(priority.upper(), "🟢")
+    priority_field = f"{p_emoji} {priority.upper()}"
 
     owner_sla, sla_hours = "", None
     if project_root:
@@ -83,6 +88,7 @@ def make_issue_content(
         "",
         f"**发起方：** @{creator_field}",
         f"**处理方：** @{owner_field}",
+        f"**优先级：** {priority_field}",
         f"**创建时间：** {now}",
         f"**状态：** {emoji} {status}",
         f"**SLA 截止：** {sla_deadline}",
@@ -124,6 +130,7 @@ def parse_issue_file(path: Path) -> Dict[str, Any]:
         "queue":              "",
         "title":              "",
         "status":             "open",
+        "priority":           "P2",
         "owner":              "",
         "creator":            "",
         "ref":                "",
@@ -156,6 +163,7 @@ def parse_issue_file(path: Path) -> Dict[str, Any]:
             key_map = {
                 "发起方":            "creator",
                 "处理方":            "owner",
+                "优先级":            "priority",
                 "创建时间":          "created",
                 "状态":              "status",
                 "SLA 截止":          "sla_deadline",
@@ -169,6 +177,10 @@ def parse_issue_file(path: Path) -> Dict[str, Any]:
                 # Extract text after emoji if present. E.g. "⭕ OPEN" -> "OPEN"
                 parts = val.split(maxsplit=1)
                 data["status"] = parts[1] if len(parts) > 1 else parts[0]
+            if key == "优先级":
+                # Extract text after emoji if present. E.g. "🔴 P0" -> "P0"
+                parts = val.split(maxsplit=1)
+                data["priority"] = parts[1] if len(parts) > 1 else parts[0]
 
     sections = {}
     current = None
@@ -268,7 +280,7 @@ def _update_issue_file(project_root: Path, data: Dict[str, Any], status: str, re
 # Issue Commands
 # ─────────────────────────────────────────────
 
-def cmd_issue_new(project_root: Path, queue: str, title: str, ref: Optional[str], creator: Optional[str] = None):
+def cmd_issue_new(project_root: Path, queue: str, title: str, ref: Optional[str], creator: Optional[str] = None, priority: str = "P2"):
     from .mai import out, err, ensure_mai_structure, suggest
     queue_sla = get_queue_sla(project_root)
     if queue not in queue_sla:
@@ -291,6 +303,7 @@ def cmd_issue_new(project_root: Path, queue: str, title: str, ref: Optional[str]
         ref=ref or "",
         project_root=project_root,
         creator=agent,
+        priority=priority,
     )
 
     if GLOBAL.dry_run:
@@ -462,6 +475,7 @@ def cmd_issue_escalate(project_root: Path, issue_id: str) -> None:
             f"描述：{desc}\n"
         ),
         project_root=project_root,
+        priority="P0",
     )
 
     if not GLOBAL.dry_run:

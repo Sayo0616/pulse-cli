@@ -36,7 +36,18 @@ def cmd_queue_check(project_root: Path, queue: Optional[str], overdue: bool, sho
         
         # REQ-4: Filter by handler
         if handler:
-            issues = [iss for iss in issues if handler.lower() in iss.get("owner", "").lower()]
+            h_clean = handler.lower()
+            if h_clean.startswith("@"):
+                h_clean = h_clean[1:]
+            
+            filtered_issues = []
+            for iss in issues:
+                owner = iss.get("owner", "").lower()
+                if owner.startswith("@"):
+                    owner = owner[1:]
+                if h_clean in owner:
+                    filtered_issues.append(iss)
+            issues = filtered_issues
 
         sla_owner, sla_hours = queue_sla.get(q, ("unknown", None))
         results[q] = {
@@ -54,14 +65,21 @@ def cmd_queue_check(project_root: Path, queue: Optional[str], overdue: bool, sho
         out_json({"ok": True, "command": "queue check", "overdue_only": overdue, "queues": results})
     else:
         for q, data in results.items():
-            sla_str = f"{data['sla_hours']}h" if data["sla_hours"] else "no SLA"
-            out(f"\n## Queue: {q} (SLA: {data['sla_owner']}/{sla_str}) - {data['total']} issues")
-            if not data["issues"]:
-                out("  (empty)")
+            if not handler:
+                sla_str = f"{data['sla_hours']}h" if data["sla_hours"] else "no SLA"
+                out(f"\n## Queue: {q} (SLA: {data['sla_owner']}/{sla_str}) - {data['total']} issues")
+                if not data["issues"]:
+                    out("  (empty)")
+            
             for iss in data["issues"]:
                 emoji = status_emoji.get(iss["status"].lower(), "")
-                out(f"  [{iss['id']}] {emoji} {iss['title']} "
-                    f"(owner: {iss['owner']}, created: {iss['created']})")
+                if handler:
+                    # [ID] emoji STATUS Title (owner: NAME, created: ...)
+                    out(f"[{iss['id']}] {emoji} {iss['status']} {iss['title']} "
+                        f"(owner: {iss['owner']}, created: {iss['created']})")
+                else:
+                    out(f"  [{iss['id']}] {emoji} {iss['title']} "
+                        f"(owner: {iss['owner']}, created: {iss['created']})")
 
 
 def cmd_queue_blockers(project_root: Path):

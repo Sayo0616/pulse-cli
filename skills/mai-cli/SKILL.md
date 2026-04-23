@@ -14,8 +14,8 @@ mai-cli 通过 flock 原子锁和队列路由协调多 Agent 工作流。
 ## Issue 生命周期
 
 ```
-# 1. 新建 issue（指定队列）
-mai --project <path> issue new <queue> <title> [--ref <ref-id>] [--creator <name>]
+# 1. 新建 issue（指定队列，可选优先级，默认 P2）
+mai --project <path> issue new <queue> <title> [--ref <ref-id>] [--creator <name>] [--priority P0|P1|P2]
 
 # 2. 认领 issue（加 flock 锁，状态 → IN_PROGRESS）
 mai --project <path> issue claim <issue-id>
@@ -30,7 +30,7 @@ mai --project <path> issue unblock <issue-id>
 mai --project <path> issue complete <issue-id> <conclusion>
 mai --project <path> issue submit-to-creator <issue-id>
 
-# 6. 转交任务（自动释放锁，状态保持为 OPEN）
+# 6. 转交任务（自动释放锁，状态保持为 OPEN；注意：仅变更处理人，队列不变）
 mai --project <path> issue transfer <issue-id> <next-handler>
 
 # 7. Creator 确认与反馈
@@ -133,6 +133,7 @@ mai --project <path> log undo
 
 ## 注意事项
 
+- **Queue 与 Handler 解耦**：Issue 的 `queue` 在创建时固定，**不随处理过程变更**；`handler`（处理人/owner）可通过 `transfer` / `submit-to-creator` / `reject` 等命令变更
 - claim 后必须 complete 或 block，长期持有锁会阻塞队列
 - `lock release --force` 在 CI/脚本环境使用 `--yes` 跳过交互确认
 - escalation gen 生成文档，issue escalate 执行升级，两者配合使用

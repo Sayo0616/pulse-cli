@@ -15,7 +15,7 @@ from importlib.metadata import version, PackageNotFoundError
 try:
     __version__ = version("mai-cli")
 except PackageNotFoundError:
-    __version__ = "1.7.2"
+    __version__ = "1.8.0"
 
 from .config import (
     get_mai_dir, get_async_dir, find_project_root,
@@ -141,6 +141,7 @@ def build_parser():
     p.add_argument("queue"); p.add_argument("title")
     p.add_argument("--ref", default=None)
     p.add_argument("--creator", default=None, help="Override the issue creator (default: current agent)")
+    p.add_argument("--priority", choices=["P0", "P1", "P2"], default="P2", help="Issue priority (default: P2)")
 
     p = iss.add_parser("amend", help="Amend issue")
     p.add_argument("issue_id"); p.add_argument("remark", nargs="?", default="")
@@ -401,7 +402,7 @@ def dispatch_issue(args, project_root: Path) -> None:
     )
     from .issue_list import cmd_issue_list, cmd_issue_show
     if args.issue_cmd == "new":
-        cmd_issue_new(project_root, args.queue, args.title, args.ref, getattr(args, "creator", None))
+        cmd_issue_new(project_root, args.queue, args.title, args.ref, getattr(args, "creator", None), getattr(args, "priority", "P2"))
     elif args.issue_cmd == "amend":
         cmd_issue_amend(project_root, args.issue_id, args.remark)
     elif args.issue_cmd == "claim":
