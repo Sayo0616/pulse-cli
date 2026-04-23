@@ -124,7 +124,7 @@ mai issue escalate <issue-id>
 
 ### Queue
 ```
-mai queue check [queue] [--all] [--handler @name] [--overdue]
+mai queue check [queue] [--all] [--handler <name>] [--overdue]
 mai queue blockers
 mai queue create <queue> --owner <agent> [--sla <hours>]
 ```

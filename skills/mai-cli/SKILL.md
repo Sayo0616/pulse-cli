@@ -48,10 +48,10 @@ mai --project <path> issue reopen <issue-id> <原因>
 ```
 # 查看队列状态（默认隐藏 COMPLETED）
 # --all 显示全部，--overdue 只看超时，--handler 过滤处理人
-mai --project <path> queue check [queue] [--all] [--overdue] [--handler @agent]
+mai --project <path> queue check [queue] [--all] [--overdue] [--handler <agent>]
 
 # 列表展示 Issue（支持过滤）
-mai --project <path> issue list [queue] [--handler @agent]
+mai --project <path> issue list [queue] [--handler <agent>]
 
 # 查看 issue 详情
 mai --project <path> issue show <issue-id>

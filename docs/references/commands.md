@@ -14,7 +14,7 @@
 | `issue reopen <issue-id> <reason>` | 重新打开已完成的 issue（记录原因） |
 | `issue status <issue-id>` | 查看 issue 状态历史时间线 |
 | `issue amend <issue-id> <remark>` | 补充说明或备注 |
-| `issue list [queue] [--handler @name]` | 列出 Issue（支持按处理人过滤，自动剥离 `@` 前缀） |
+| `issue list [queue] [--handler <name>]` | 列出 Issue（支持按处理人过滤） |
 | `issue show <issue-id>` | 查看 issue 详情 |
 | `issue transfer <issue-id> <next-handler>` | 转交 Issue 给下一位处理人（自动释放锁） |
 | `issue submit-to-creator <issue-id>` | 将 Issue 提交给发起方（Creator）确认 |
@@ -26,7 +26,7 @@
 
 | 命令 | 说明 |
 |------|------|
-| `queue check [queue] [--overdue] [--all] [--handler @name]` | 检查队列状态。默认隐藏已完成。支持按处理人过滤（自动剥离 `@`）。`--all` 显示全部，`--overdue` 只显示超时 |
+| `queue check [queue] [--overdue] [--all] [--handler <name>]` | 检查队列状态。默认隐藏已完成。`--all` 显示全部，`--overdue` 只显示超时，`--handler` 按处理人过滤 |
 | `queue blockers` | 显示当前阻塞队列的 issue |
 | `queue create <queue> --owner <agent> [--sla <hours>]` | 创建新队列 |
 

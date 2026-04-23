@@ -147,7 +147,7 @@ mai [-v|--version] [--project <项目名>] [--format json|text] [--dry-run] <子
 
 | 命令 | 说明 |
 |:---|:---|
-| `mai queue check [queue] [--all] [--handler @name] [--overdue]` | 扫描队列，支持按状态、处理人过滤 |
+| `mai queue check [queue] [--all] [--handler <name>] [--overdue]` | 扫描队列，支持按状态、处理人过滤 |
 | `mai queue blockers` | 合并输出所有 blocker |
 | `mai queue create <queue> --owner <agent> [--sla <小时>]` | 创建新队列 |
 
