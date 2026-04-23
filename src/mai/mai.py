@@ -15,7 +15,7 @@ from importlib.metadata import version, PackageNotFoundError
 try:
     __version__ = version("mai-cli")
 except PackageNotFoundError:
-    __version__ = "1.7.1"
+    __version__ = "1.7.2"
 
 from .config import (
     get_mai_dir, get_async_dir, find_project_root,

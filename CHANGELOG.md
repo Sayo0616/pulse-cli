@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.7.2 (2026-04-23)
+- **Fix: Reject Handler Reversion** — 修复了 `issue reject` 时处理人没有正确回退的问题。现在会根据 Timeline 记录自动将 Issue 归还给上一个处理人。
+- **Fix: Multi-line Timeline Parsing** — 修复了 `issue show` 无法显示处理记录中换行内容的问题，现在能正确解析并保留多行备注。
+- **Fix: Handler Substring Matching** — 将 `--handler` 过滤逻辑优化为不区分大小写的子串匹配，解决部分 Agent 因名称大小写或部分前缀不匹配而搜不到 Issue 的问题。
+- **Fix: Creator Fallback Strategy** — 增强了 `submit-to-creator` 的健壮性，当 `creator` 字段意外丢失时，可自动从历史记录中追溯初始发起人。
+
 ## v1.7.1 (2026-04-23)
 - **ID: 全局唯一哈希 ID** — 重构 Issue ID 生成逻辑，从递增序列升级为 `[Prefix]-[6位随机哈希]`（如 `REQ-94064B`）。新增全局冲突检测，遍历所有队列目录确保 ID 绝对唯一。
 - **UX: Handler 参数归一化** — 官方推荐使用不带 `@` 前缀的 Agent 名称作为 `--handler` 参数。同步更新了 README、DEPLOYMENT 和 SKILL 文档示例，并移除了文档中关于“自动剥离 @”的过时描述（代码仍保持兼容）。
