@@ -53,6 +53,7 @@ mai --project <path> issue reopen <issue-id> <原因> -o <name>
 ```
 # 查看队列状态（默认隐藏 COMPLETED）
 # --all 显示全部，--overdue 只看超时，--handler 过滤处理人
+# queue 可以指定具体队列，也可省略查看所有队列
 mai --project <path> queue check [queue] [--all] [--overdue] [--handler <agent>]
 
 # 列表展示 Issue（支持过滤）
@@ -141,8 +142,9 @@ mai --project <path> log undo
 - **操作署名制**：v1.9.0 后，所有对 Issue 状态或元数据的修改都必须附带 `-o` / `--operator <name>`，否则命令将失败。
 - **角色权责分明**：
     - **Root**：全权限管理员。
-    - **Owner**：队列负责人。负责 `create`, `complete`, `transfer`, `reject`, `reopen` 等管理操作。
-    - **Handler**：当前处理人。负责执行任务，可进行 `claim`, `amend`, `block`, `unblock` 等操作。执行完毕后需 `transfer` 给 Owner 验收。
+    - **Owner**：队列负责人。负责 `create`, `complete`, `transfer`, `reject`, `reopen`, `escalate` 等管理 操作。
+    - **Handler**：当前处理人。负责执行任务，可进行 `claim`, `amend`, `block`, `unblock`, `transfer` 等操 作。执行完毕后需 `transfer` 给 Owner 验收。
+
 - claim 后必须 transfer 或 block，长期持有锁会阻塞队列。
 - `lock release --force` 在 CI/脚本环境使用 `--yes` 跳过交互确认。
 - escalation gen 生成文档，issue escalate 执行升级，两者配合使用。

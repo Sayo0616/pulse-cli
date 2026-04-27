@@ -86,3 +86,25 @@
 | 命令 | 说明 |
 |------|------|
 | `status [--verbose]` | 全局项目视图：队列摘要、锁状态、日报进度。`verbose` 输出各队列详细 issue 列表 |
+
+---
+
+## 权限矩阵 (v1.9.1)
+
+| 操作 | root | owner | handler | 其他 |
+|:-----|:----:|:-----:|:-------:|:----:|
+| read issue | ✅ | ✅ | ✅ | ✅ |
+| create issue | ✅ | ✅ | ❌ | ❌ |
+| claim issue | ✅ | ✅ | ✅ | ❌ |
+| complete issue | ✅ | ✅ | ❌ | ❌ |
+| block issue | ✅ | ✅ | ✅ | ❌ |
+| unblock issue | ✅ | ✅ | ✅ | ❌ |
+| transfer issue | ✅ | ✅ | ✅ | ❌ |
+| edit issue 字段 | ✅ | ✅ | ❌ | ❌ |
+| reopen issue | ✅ | ✅ | ❌ | ❌ |
+| amend issue | ✅ | ✅ | ✅ | ❌ |
+
+**说明：**
+- **root**：超级管理员，由 config.json 配置。
+- **owner**：issue 所在队列的负责人。
+- **handler**：issue 当前的处理人（claim 后获得）。
