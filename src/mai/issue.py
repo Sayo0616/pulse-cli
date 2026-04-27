@@ -75,7 +75,10 @@ def check_permission(project_root: Path, operator: str, action: str, issue: Opti
     if action in ["block", "unblock"]:
         return is_owner or is_handler
     
-    if action in ["transfer", "amend", "reopen", "escalate"]:
+    if action in ["transfer", "amend"]:
+        return is_owner or is_handler
+    
+    if action in ["reopen", "escalate"]:
         return is_owner
 
     if action in ["confirm", "reject"]:
@@ -132,7 +135,7 @@ def make_issue_content(
     priority: str = "P2",
     operator: str = "unknown",
 ) -> str:
-    """Build a spec-compliant issue markdown file (v1.9.0)."""
+    """Build a spec-compliant issue markdown file (v1.9.1)."""
     now = datetime.now().isoformat()
     from .config import DEFAULT_EMOJI
     if project_root:

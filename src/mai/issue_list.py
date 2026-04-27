@@ -132,12 +132,17 @@ def cmd_issue_show(project_root: Path, issue_id: str):
         # Keep creator in JSON for backward compatibility but suggest migration
         out_json({"ok": True, "command": "issue show", "issue": issue, "lock": lock_info})
     else:
+        queue = issue.get("queue")
+        queue_sla = get_queue_sla(project_root)
+        q_owner, _ = queue_sla.get(queue, (None, None))
+
         out(f"\n=== Issue {issue['id']} ===")
-        out(f"Queue:    {issue.get('queue', '')}")
+        out(f"Queue:    {queue}")
         out(f"Title:    {issue['title']}")
         out(f"Priority: {issue.get('priority', 'P2')}")
         out(f"Status:   {issue.get('status', '')}")
-        out(f"Owner:    {issue.get('owner', '')}")
+        out(f"Owner:    {q_owner or ''}")
+        out(f"Handler:  {issue.get('owner', '')}")
         out(f"Created:  {issue.get('created', '')}")
         out(f"SLA:      {issue.get('sla_deadline', '')}")
         out(f"Ref:      {issue.get('ref', '')}")
