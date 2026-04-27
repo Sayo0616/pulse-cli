@@ -1,4 +1,4 @@
 """Mai CLI - Multi-Agent Collaboration Command System.
 
 """
-__version__ = "1.6.4"
+__version__ = "1.9.1"

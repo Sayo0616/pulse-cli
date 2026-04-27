@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.9.1 (2026-04-27)
+- **Fix: 权限矩阵修正** — 修正了 Handler（当前处理人）无法执行 `transfer` 和 `amend` 操作的问题。现在 Handler 可以在持有锁的情况下转交 Issue 或补充备注。
+- **UX: `issue show` 格式优化** — 明确区分了 `Owner`（队列负责人）与 `Handler`（当前处理人），解决了 v1.9.0 中两者标签混淆的问题。
+
 ## v1.9.0 (2026-04-26)
 - **REQ: 操作署名制 (Operator Signature)** — 所有写操作（`claim`, `complete`, `block`, `unblock`, `transfer`, `amend`, `reopen`, `escalate`）现在强制要求 `--operator <name>` 参数或 `MAI_OPERATOR` 环境变量，确保操作可追溯。
 - **REQ: 权限矩阵实现 (Permission Matrix)** — 引入了核心权限校验逻辑。`complete`、`transfer`、`reopen`、`escalate` 等管理操作仅限 Root 或 Queue Owner 执行；Handler 仅限执行类操作（`claim`, `block`, `amend`）。
