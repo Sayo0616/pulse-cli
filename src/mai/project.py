@@ -32,10 +32,10 @@ def ensure_mai_structure(project_root: Path):
         (async_dir / q).mkdir(parents=True, exist_ok=True)
 
 
-def cmd_project_init(project_name: str):
+def cmd_project_init(project_name: str, operator: str = None):
     """Initialize a new project with Mai directory structure."""
-    if project_name == ".":
-        project_root = Path.cwd()
+    if project_name == "." or isinstance(project_name, Path):
+        project_root = Path(project_name).resolve()
     else:
         project_root = find_project_root(project_name)
         if project_root is None:
@@ -46,6 +46,16 @@ def cmd_project_init(project_name: str):
                     f"# {project_name}\n\n协作项目于 {datetime.now().isoformat()} 初始化。\n"
                 )
             project_root = projects_dir
+
+    if not GLOBAL.dry_run:
+        # REQ-1.9.2: Check permission for project init
+        from .issue import _check_permission_or_err
+        from .config import get_roots
+        import getpass
+        
+        # If no operator provided, fallback to OS user for the check
+        check_op = operator or getpass.getuser()
+        _check_permission_or_err(project_root, check_op, "init")
 
     ensure_mai_structure(project_root)
 

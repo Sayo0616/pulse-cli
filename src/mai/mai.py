@@ -15,7 +15,7 @@ from importlib.metadata import version, PackageNotFoundError
 try:
     __version__ = version("mai-cli")
 except PackageNotFoundError:
-    __version__ = "1.9.1"
+    __version__ = "1.9.2"
 
 from .config import (
     get_mai_dir, get_async_dir, find_project_root,
@@ -132,6 +132,7 @@ def build_parser():
 
     # ── init (shortcut for project init) ──
     init_sp = sub.add_parser("init", help="Initialize project in current directory")
+    init_sp.add_argument("-o", "--operator", help="Operator name")
 
     # ── issue ──
     issue_sp = sub.add_parser("issue", help="Issue commands")
@@ -260,6 +261,7 @@ def build_parser():
     pr = proj_sp.add_subparsers(dest="proj_cmd", required=True)
     p = pr.add_parser("init")
     p.add_argument("name", nargs="?", default=".", help="Project name or path (optional, default '.')")
+    p.add_argument("-o", "--operator", help="Operator name")
 
     # ── agent ──
     agent_sp = sub.add_parser("agent")
@@ -397,9 +399,9 @@ def dispatch(args) -> None:
             dispatch_exec(args, project_root)
         elif args.subcommand == "project":
             if args.proj_cmd == "init":
-                cmd_project_init(args.name)
+                cmd_project_init(args.name, operator=getattr(args, "operator", None))
         elif args.subcommand == "init":
-            cmd_project_init(Path.cwd())
+            cmd_project_init(Path.cwd(), operator=getattr(args, "operator", None))
         elif args.subcommand == "agent":
             dispatch_agent(args, project_root)
     except Exception as e:

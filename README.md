@@ -222,4 +222,4 @@ MIT License — see [LICENSE](LICENSE) for the full text.
 
 ---
 
-*Mai CLI v1.9.1*
+*Mai CLI v1.9.2*

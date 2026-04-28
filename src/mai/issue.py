@@ -135,7 +135,7 @@ def make_issue_content(
     priority: str = "P2",
     operator: str = "unknown",
 ) -> str:
-    """Build a spec-compliant issue markdown file (v1.9.1)."""
+    """Build a spec-compliant issue markdown file (v1.9.2)."""
     now = datetime.now().isoformat()
     from .config import DEFAULT_EMOJI
     if project_root:

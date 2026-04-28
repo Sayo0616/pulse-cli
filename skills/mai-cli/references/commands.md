@@ -76,8 +76,8 @@
 
 | 命令 | 说明 |
 |------|------|
-| `init` | 在当前目录初始化 mai-cli 项目（不接受参数） |
-| `project init [project-name]` | 在指定路径初始化项目，name 可选 |
+| `init [-o <name>]` | 在当前目录初始化 mai-cli 项目（可选 -o 指定操作人） |
+| `project init [project-name] [-o <name>]` | 在指定路径初始化项目（可选 -o 指定操作人） |
 | `agent list` | 列出所有已注册的 Agent |
 | `agent add <name> [--heartbeat-minutes 30]` | 注册新 Agent 并创建同名默认任务队列 |
 

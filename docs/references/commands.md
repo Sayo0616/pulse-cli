@@ -89,11 +89,12 @@
 
 ---
 
-## 权限矩阵 (v1.9.1)
+## 权限矩阵 (v1.9.2)
 
 | 操作 | root | owner | handler | 其他 |
 |:-----|:----:|:-----:|:-------:|:----:|
 | read issue | ✅ | ✅ | ✅ | ✅ |
+| init project | ✅ | ❌ | ❌ | ❌ |
 | create issue | ✅ | ✅ | ❌ | ❌ |
 | claim issue | ✅ | ✅ | ✅ | ❌ |
 | complete issue | ✅ | ✅ | ❌ | ❌ |

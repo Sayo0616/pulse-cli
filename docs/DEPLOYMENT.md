@@ -44,11 +44,11 @@
 ### 步骤 1.1:初始化 mai-cli 项目
 
 ```bash
-mai init                      # 在当前目录初始化
-mai project init [name]       # 在指定路径初始化，name 可省略
+mai init [-o <name>]         # 在当前目录初始化（可选 -o 指定操作人）
+mai project init [name] [-o <name>] # 在指定路径初始化，name 可省略（可选 -o 指定操作人）
 ```
 
-> 不传参数时，`mai init` 在当前目录初始化项目（REQ-009）。
+> 不传参数时，`mai init` 在当前目录初始化项目（REQ-009）。**注意**：项目初始化仅限 `root` 用户执行（v1.9.2）。对于未初始化的目录，当前 OS 用户默认为 root。
 
 ### 步骤 1.2:注册团队成员
 
@@ -302,8 +302,8 @@ mai --project <SHARED_WORKSPACE_PATH> daily-summary read <AGENT_NAME>
 
 ```
 # Project / Agent
-mai init
-mai project init [project-name]
+mai init [-o <name>]
+mai project init [project-name] [-o <name>]
 mai agent list
 mai agent add <name> [--heartbeat-minutes 30]
 
