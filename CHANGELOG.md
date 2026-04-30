@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.10.1 (2026-04-30)
+- **Fix: CI 集成测试隔离性增强** — 修复了 CI 环境中环境变量（如 `MAI_PROJECT`）干扰集成测试的问题。增加了对测试环境的严格清理（Monkeypatch）及对 `find_project_root` 的全路径 Mock。
+- **Refactor: 逻辑去重** — 删除了 `mai.py` 中冗余的 `ensure_mai_structure` 定义，统一使用 `project.py` 中的标准实现，并补齐了 `daily-summary` 目录创建及 `dry_run` 保护逻辑。
+- **Stability: 测试报错增强** — 为集成测试增加了详细的上下文报错信息，便于快速定位环境配置引发的失败。
+
 ## v1.10.0 (2026-04-30)
 - **REQ: 全局基础设施支持** — 引入 `~/.mai-cli/` 文件夹管理全局配置 (`config.json`) 和项目注册表 (`registry.json`)。
 - **REQ: 全局 Root 权限** — 支持全局 Root 用户，配置在 `~/.mai-cli/config.json` 中，拥有跨项目的所有操作权限。
