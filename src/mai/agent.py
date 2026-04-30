@@ -60,6 +60,15 @@ def cmd_agent_add(project_root: Path, name: str, heartbeat_minutes: int = 30):
     save_config(project_root, config)
     ensure_mai_structure(project_root)
 
+    # 6. Update Global Registry
+    from .project_registry import add_project
+    add_project(
+        name=project_root.name,
+        path=str(project_root.resolve()),
+        description=f"Mai Project {project_root.name}",
+        agents=list(config["agents"].keys())
+    )
+
     out(f"Agent '{normalized_name}' registered successfully.", command="agent add", agent=normalized_name)
     out(f"Default queue created: {q_name} (Prefix: {prefix})")
 
