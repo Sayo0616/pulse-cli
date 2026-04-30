@@ -287,7 +287,7 @@ def test_dispatch_project_init_unknown_project(capsys):
     GLOBAL.format = "text"
     parser = build_parser()
     # project init for a non-existent project should not crash
-    args = parser.parse_args(["project", "init", "DoesNotExist____test"])
+    args = parser.parse_args(["project", "init", "DoesNotExist____test", "-o", "admin"])
     GLOBAL.dry_run = True
     from mai.mai import dispatch
     try:

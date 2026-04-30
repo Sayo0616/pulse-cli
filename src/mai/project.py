@@ -59,9 +59,11 @@ def cmd_project_init(project_name: str, operator: str = None):
             project_root = projects_dir
 
     # 2. Check Permission (Root Only)
-    check_op = operator or os.environ.get("MAI_AGENT") or getpass.getuser()
-    if not check_project_permission(project_root, check_op, "init"):
-        err(f"权限不足：只有 root 用户可以初始化项目。当前用户: '{check_op}'", 3, error="PERMISSION_DENIED")
+    if not operator:
+        err("Operator parameter is strictly required for project init.", 1, error="MISSING_OPERATOR")
+
+    if not check_project_permission(project_root, operator, "init"):
+        err(f"权限不足：只有 root 用户可以初始化项目。当前用户: '{operator}'", 3, error="PERMISSION_DENIED")
 
     # 3. Check if already initialized — check .mai/config.json existence first
     mai_dir = get_mai_dir(project_root)
@@ -122,9 +124,11 @@ def cmd_project_delete(project_name: str, operator: str = None):
         err(f"Project '{project_name}' not found.", 1, error="NOT_FOUND")
 
     # Check Permission (Root Only)
-    check_op = operator or os.environ.get("MAI_AGENT") or getpass.getuser()
-    if not check_project_permission(project_root, check_op, "delete_project"):
-        err(f"权限不足：只有 root 用户可以删除项目。当前用户: '{check_op}'", 3, error="PERMISSION_DENIED")
+    if not operator:
+        err("Operator parameter is strictly required for project delete.", 1, error="MISSING_OPERATOR")
+
+    if not check_project_permission(project_root, operator, "delete_project"):
+        err(f"权限不足：只有 root 用户可以删除项目。当前用户: '{operator}'", 3, error="PERMISSION_DENIED")
 
     if GLOBAL.dry_run:
         out(f"[dry-run] Would delete project '{project_name}' at '{project_root}'", command="project delete")

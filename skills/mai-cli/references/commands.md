@@ -72,8 +72,6 @@
 | `issue escalate <issue-id> -o <name> / --operator <name>` | 将 issue 升级到上级处理 |
 | `issue discard <issue-id> <reason> -o <name> / --operator <name>` | 废弃 issue（root/owner 可执行，终态） |
 
-## queue 子命令
-...
 ## project / agent 子命令
 
 | 命令 | 说明 |

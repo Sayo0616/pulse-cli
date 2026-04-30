@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.10.3 (2026-04-30)
+- **REQ: 饿汉式全局初始化** — 引入 `mai setup` 命令，用于显式初始化全局配置 `~/.mai-cli/`。
+- **REQ: 初始化强制校验** — 现在所有 Mai 指令（除 `setup`, `help`, `version` 外）在执行前都会检查全局配置是否存在，未初始化将提示运行 `mai setup`。
+- **REQ: 引导式 Root 设置** — `mai setup` 支持交互式引导用户设置全局 Root Agent，并提供 `--root` 参数支持非交互式环境。
+- **REQ: `init` 权限收缩** — `mai init` 和 `mai project init/delete` 现在强制要求 `-o/--operator` 参数，且不再提供 OS 用户或环境变量的默认回退，确保操作权限可控。
+
 ## v1.10.1 (2026-04-30)
 - **Fix: CI 集成测试隔离性增强** — 修复了 CI 环境中环境变量（如 `MAI_PROJECT`）干扰集成测试的问题。增加了对测试环境的严格清理（Monkeypatch）及对 `find_project_root` 的全路径 Mock。
 - **Refactor: 逻辑去重** — 删除了 `mai.py` 中冗余的 `ensure_mai_structure` 定义，统一使用 `project.py` 中的标准实现，并补齐了 `daily-summary` 目录创建及 `dry_run` 保护逻辑。

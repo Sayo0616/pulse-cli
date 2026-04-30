@@ -101,13 +101,19 @@ def build_parser():
 
     sub = parser.add_subparsers(dest="subcommand", required=True)
 
+    # ── setup (Global Setup) ──
+    setup_sp = sub.add_parser("setup", help="Eagerly setup global .mai-cli configuration")
+    setup_sp.add_argument("--root", help="Root agents (comma separated)")
+
     # ── status (Global view) ──
     p = sub.add_parser("status", help="Show global project status")
     p.add_argument("--verbose", "-v", action="store_true", help="Show detailed issue list")
 
     # ── init (shortcut for project init) ──
     init_sp = sub.add_parser("init", help="Initialize project in current directory")
-    init_sp.add_argument("-o", "--operator", help="Operator name")
+    init_sp.add_argument("-o", "--operator", required=True, help="Operator name (strictly required)")
+
+    # ... rest of issue commands ...
 
     # ── issue ──
     issue_sp = sub.add_parser("issue", help="Issue commands")
@@ -240,11 +246,11 @@ def build_parser():
     pr = proj_sp.add_subparsers(dest="proj_cmd", required=True)
     p = pr.add_parser("init")
     p.add_argument("name", nargs="?", default=".", help="Project name or path (optional, default '.')")
-    p.add_argument("-o", "--operator", help="Operator name")
+    p.add_argument("-o", "--operator", required=True, help="Operator name (strictly required)")
     
     p = pr.add_parser("delete", help="Delete a project (root only)")
     p.add_argument("name", help="Project name or path")
-    p.add_argument("-o", "--operator", help="Operator name")
+    p.add_argument("-o", "--operator", required=True, help="Operator name (strictly required)")
 
     p = pr.add_parser("list", help="List registered projects")
     p.add_argument("--agent", help="Filter by agent participation")
@@ -330,6 +336,34 @@ def cmd_status(project_root: Path, verbose: bool = False):
 
 
 def dispatch(args) -> None:
+    from .global_config import get_global_config_path, save_global_config, get_global_config
+
+    # REQ: Global initialization check
+    if args.subcommand != "setup":
+        if not get_global_config_path().exists():
+            err("Global configuration not initialized. Run 'mai setup' first.", 100, error="NOT_GLOBAL_INITIALIZED", hint="Run 'mai setup' to initialize global configuration and set root users.")
+
+    if args.subcommand == "setup":
+        if get_global_config_path().exists():
+            out("Global configuration already exists.", command="setup")
+            return
+        
+        roots = []
+        if args.root:
+            roots = [r.strip() for r in args.root.split(",") if r.strip()]
+        else:
+            try:
+                raw_input = input("Please enter the root agents for this machine (comma separated): ")
+                roots = [r.strip() for r in raw_input.split(",") if r.strip()]
+            except EOFError:
+                err("Interactive input not available and --root not provided.", 1, error="SETUP_FAILED")
+        
+        config = get_global_config()
+        config["root"] = roots
+        save_global_config(config)
+        out("Global configuration initialized successfully.", command="setup")
+        return
+
     # Lazy import to avoid circular dependency at module load time
     from .issue import (
         cmd_issue_new, cmd_issue_amend, cmd_issue_claim,

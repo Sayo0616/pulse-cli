@@ -61,6 +61,7 @@ def test_init_success_for_os_user(monkeypatch, capsys):
         clear_config_cache()
         
         # Should succeed because there's no config, so current OS user is root
-        cmd_project_init(".")
+        current_user = getpass.getuser()
+        cmd_project_init(".", operator=current_user)
         out = capsys.readouterr().out
         assert "initialized at" in out
