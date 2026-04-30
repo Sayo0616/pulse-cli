@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.10.0 (2026-04-30)
+- **REQ: 全局基础设施支持** — 引入 `~/.mai-cli/` 文件夹管理全局配置 (`config.json`) 和项目注册表 (`registry.json`)。
+- **REQ: 全局 Root 权限** — 支持全局 Root 用户，配置在 `~/.mai-cli/config.json` 中，拥有跨项目的所有操作权限。
+- **REQ: 项目注册与管理** — 新增 `mai project list` (支持 `--agent` 过滤) 和 `mai project delete` 命令。`mai project init` 现在会自动将项目注册到全局注册表中。
+- **REQ: 权限系统重构** — 将权限校验逻辑从 `issue.py` 提取到独立的 `permission.py` 模块，支持全局 Root 优先校验及本地 Owner/Handler 降级校验。
+- **REQ: 废弃工单支持** — 新增 `DISCARDED` 终态，并提供 `mai issue discard <id> <reason>` 命令，仅限 Root 或 Queue Owner 执行。
+- **REQ: 初始化保护** — `mai project init` 增加重复初始化检查，禁止对已初始化的项目重复执行以防止配置丢失。
+- **UX: 状态展示增强** — `mai status` 现在同步展示全局 Root 信息，并在队列统计中包含 `DISCARDED` 状态的计数。
+- **Stability: 原子写入与并发安全** — 全局配置与注册表采用“临时文件+重命名”的原子写入策略，注册表操作增加跨平台文件锁保护。
+
 ## v1.9.2 (2026-04-28)
 - **REQ: `init project` 权限限制** — 强化了项目初始化权限。现在 `mai init` 或 `mai project init` 仅限 `root` 用户执行。对于已初始化的项目，非 `root` 用户将无法重复执行或重置配置。
 

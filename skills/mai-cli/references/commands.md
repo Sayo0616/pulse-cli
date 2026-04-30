@@ -69,15 +69,19 @@
 ## exec 子命令
 
 | 命令 | 说明 |
-|------|------|
-| `exec safe-check <command>` | 在沙盒环境中安全执行命令（预览模式） |
+| `issue escalate <issue-id> -o <name> / --operator <name>` | 将 issue 升级到上级处理 |
+| `issue discard <issue-id> <reason> -o <name> / --operator <name>` | 废弃 issue（root/owner 可执行，终态） |
 
+## queue 子命令
+...
 ## project / agent 子命令
 
 | 命令 | 说明 |
 |------|------|
-| `init [-o <name>]` | 在当前目录初始化 mai-cli 项目（可选 -o 指定操作人） |
-| `project init [project-name] [-o <name>]` | 在指定路径初始化项目（可选 -o 指定操作人） |
+| `init` | [Alias] 在当前目录初始化 mai-cli 项目 |
+| `project init [project-name]` | 在指定路径初始化项目（仅 root 可执行，增加重复初始化保护） |
+| `project delete <project-name>` | 删除指定项目（仅 root 可执行，删除文件及注册表记录） |
+| `project list [--agent <name>]` | 列出全局注册的项目（支持按 Agent 参与过滤） |
 | `agent list` | 列出所有已注册的 Agent |
 | `agent add <name> [--heartbeat-minutes 30]` | 注册新 Agent 并创建同名默认任务队列 |
 
@@ -85,4 +89,29 @@
 
 | 命令 | 说明 |
 |------|------|
-| `status [--verbose]` | 全局项目视图：队列摘要、锁状态、日报进度。`verbose` 输出各队列详细 issue 列表 |
+| `status [--verbose]` | 全局项目视图：显示项目 Root、队列摘要（含 DISCARDED）、锁状态、日报进度。`verbose` 输出各队列详细 issue 列表 |
+
+---
+
+## 权限矩阵 (v1.10.0)
+
+| 操作 | root (全局/本地) | owner (队列) | handler (处理人) | 其他 |
+|:-----|:----:|:-----:|:-------:|:----:|
+| read issue | ✅ | ✅ | ✅ | ✅ |
+| init project | ✅ | ❌ | ❌ | ❌ |
+| delete project | ✅ | ❌ | ❌ | ❌ |
+| create issue | ✅ | ✅ | ❌ | ❌ |
+| claim issue | ✅ | ✅ | ✅ | ❌ |
+| complete issue | ✅ | ✅ | ❌ | ❌ |
+| block issue | ✅ | ✅ | ✅ | ❌ |
+| unblock issue | ✅ | ✅ | ✅ | ❌ |
+| transfer issue | ✅ | ✅ | ✅ | ❌ |
+| edit issue 字段 | ✅ | ✅ | ❌ | ❌ |
+| reopen issue | ✅ | ✅ | ❌ | ❌ |
+| discard issue | ✅ | ✅ | ❌ | ❌ |
+| amend issue | ✅ | ✅ | ✅ | ❌ |
+
+**说明：**
+- **root**：超级管理员，由 config.json 配置。
+- **owner**：issue 所在队列的负责人。
+- **handler**：issue 当前的处理人（claim 后获得）。

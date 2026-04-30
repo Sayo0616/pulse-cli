@@ -2,223 +2,117 @@
 
 **English** | [简体中文](./README_zh.md)
 
-**Multi-Agent Collaboration CLI — flock-based coordination, event-driven workflow, zero overhead.**
+[![PyPI Version](https://img.shields.io/pypi/v/mai-cli)](https://pypi.org/project/mai-cli/)
+[![License](https://img.shields.io/github/license/sayo/mai-cli)](LICENSE)
+[![Python](https://img.shields.io/pypi/pyversions/mai-cli)](https://pypi.org/project/mai-cli/)
 
-Mai is a command-line tool that coordinates multiple AI agents working on a shared project. It provides atomic locking, queue-based issue routing, per-agent heartbeat timeouts, and an automated daily summary loop — all backed by a simple file-based store.
-
----
-
-## Features
-
-- **Atomic flock locks** — race-condition-free claim/complete cycles via POSIX `fcntl`
-- **Queue-based routing** — issues route to the right agent with configurable SLA per queue
-- **Heartbeat-aware guardian** — stale locks auto-release after `heartbeat × 1.5` minutes
-- **Event-driven daily summary** — concurrently write summaries with idempotent trigger/collect
-- **Async mirror** — `.mai/` internal store syncs to `async/` for human visibility
-- **Configurable via JSON** — all rules externalized to `config.json`; no code changes needed
-- **Dual output format** — `--format json` for machine consumption, text for humans
-- **Dry-run mode** — `--dry-run` previews every mutation without side effects
+> Multi-Agent Coordination CLI — enables multiple AI agents to collaborate autonomously via a standardized command interface, backed by flock-based atomic locking.
 
 ---
 
-## Installation
+## ✨ Features
+
+- 🔒 **Atomic flock locks** — race-condition-free claim/complete via POSIX `fcntl.flock()`
+- 📋 **Standardized commands** — full Issue lifecycle, queue scanning, lock management, audit logs, daily summaries
+- 📁 **Dual-layer storage** — `.mai/` as internal source, `async/` as human-readable mirror
+- ⚙️ **JSON configuration** — queue SLA, agent heartbeat, issue ID prefix all in `config.json`
+- 🔄 **Concurrent-safe daily summaries** — multiple agents write simultaneously with flock protection
+- 🌍 **Global Infrastructure** — centralized management of global config and project registry in `~/.mai-cli/` (v1.10.0+)
+- ✅ **Idempotent writes** — repeating any operation preserves state
+- 📦 **Zero dependencies** — Python 3 stdlib only
+
+---
+
+## 🏗️ Architecture
+
+```mermaid
+flowchart TB
+    subgraph Storage
+        A[".mai/ — internal source"]
+        B["async/ — human-readable mirror"]
+    end
+    subgraph Core
+        C["Issue Queue"]
+        D["flock Lock"]
+        E["Heartbeat Guardian"]
+    end
+    subgraph Commands
+        F["mai issue"]
+        G["mai queue"]
+        H["mai lock"]
+        I["mai daily-summary"]
+    end
+    F --> C
+    G --> C
+    H --> D
+    I --> C
+    C --> A
+    A --> B
+```
+
+---
+
+## 🚀 Quick Start
+
+### Requirements
+
+- Python 3.8+ (stdlib only, no external dependencies)
+- Linux / macOS / WSL (POSIX environment)
+
+### Install
 
 ```bash
 pip install mai-cli
 ```
 
-Or install from source:
+### Minimal Example
 
 ```bash
-git clone https://github.com/yourname/mai-cli.git
-cd mai-cli
-pip install -e .
-```
-
----
-
-## Quick Start
-
-**Step 1 — Initialize a project**
-
-```bash
+# 1. Initialize project
 mai init
-```
 
-**Step 2 — Register an agent**
+# 2. Register an agent
+mai agent add alice --heartbeat-minutes 30
 
-```bash
-mai --project MyProject agent add alice --heartbeat-minutes 30
-```
+# 3. Create an issue
+mai issue new questions "Technical review" -o alice
 
-**Step 3 — Create an issue**
+# 4. Claim issue (auto-locks)
+mai issue claim REQ-001 -o alice
 
-```bash
-mai --project MyProject issue new questions "How should we handle input buffering?"
-```
+# 5. Complete issue
+mai issue complete REQ-001 "Approved for implementation" -o alice
 
-**Step 4 — Have the assigned agent claim it**
-
-```bash
-mai --project MyProject issue claim REQ-001
-```
-
-**Step 5 — Mark it done**
-
-```bash
-mai --project MyProject issue complete REQ-001 "Decision: ring buffer, 60Hz polling"
-```
-
-**Step 6 — Inspect queues**
-
-```bash
-mai --project MyProject queue check
+# 6. Check queue
+mai queue check --overdue
 ```
 
 ---
 
-## Architecture
+## 📖 Documentation
 
-```
-.mai/                        async/
-├── queues/<queue>/  Issue files  <queue>/  Human-visible mirror
-├── locks/           flock files  (internal only)
-├── processing/      Active issues  <queue>/
-├── decisions/       Conclusion logs  decisions/
-├── history/         Audit logs  history/
-├── events/          Daily-summary triggers  (internal only)
-└── config.json      All collaboration rules
-```
-
-**Lock protocol**: When an agent claims an issue, Mai acquires an `flock(2)`-based file lock. The lock expires after `heartbeat × 1.5` minutes if the agent fails to heartbeat. The `lock guardian` cron command automatically releases stale locks.
-
-**Daily summary flow**: `trigger` → each agent `write` independently → `collect` merges all summaries into a single report.
+| Document | Description |
+|:---|:---|
+| [Deployment](./docs/DEPLOYMENT.md) | Deployment guide |
+| [Command Reference](./docs/references/commands.md) | Full command reference |
 
 ---
 
-## Command Reference
+## 🤝 Contributing
 
-### Global Options
-```
-mai [-v|--version] [--project <path>] [--format json|text] [--dry-run] <subcommand>
-```
+PRs and Issues are welcome!
 
-### Issue
-All write operations require `-o` / `--operator <name>` or `MAI_OPERATOR` env var.
-```
-mai issue new <queue> <title> -o <name> [--ref REQ-XXX] [--priority P0|P1|P2]
-mai issue claim <issue-id> -o <name>
-mai issue block <issue-id> <reason> -o <name>
-mai issue unblock <issue-id> -o <name>
-mai issue complete <issue-id> <conclusion> -o <name>
-mai issue transfer <issue-id> <next-handler> -o <name>
-mai issue confirm <issue-id> -o <name>
-mai issue reject <issue-id> <reason> -o <name>
-mai issue reopen <issue-id> <reason> -o <name>
-mai issue status <issue-id>
-mai issue amend <issue-id> <remark> -o <name>
-mai issue list [queue]
-mai issue show <issue-id>
-mai issue escalate <issue-id> -o <name>
-```
-
-**Environment Variables**:
-- `MAI_OPERATOR`: Default operator name for write actions.
-- `MAI_PROJECT`: Path to the project root.
-- `MAI_AGENT`: Legacy agent name (fallback for operator).
-
-### Queue
-```
-mai queue check [queue] [--all] [--handler <name>] [--overdue]
-mai queue blockers
-mai queue create <queue> --owner <agent> [--sla <hours>]
-```
-
-### Lock
-```
-mai lock check <issue-id>
-mai lock release <issue-id> [--force] [--yes]
-mai lock guardian
-```
-
-### Log
-```
-mai log history [--date YYYY-MM-DD] [--agent NAME]
-mai log undo
-mai log write <agent> <type> <summary> [status]
-```
-
-### Daily Summary
-```
-mai daily-summary trigger
-mai daily-summary status
-mai daily-summary reset
-mai daily-summary write <agent> <content...>  # Protected by flock
-mai daily-summary read [<agent>|.|--all]
-```
-
-### Escalation
-```
-mai escalation gen <issue-id>
-```
-
-### Exec
-```
-mai exec safe-check <command>
-```
-
-### Project / Agent
-```
-mai init                      # 在当前目录初始化（不接受参数）
-mai project init [project-name]  # 在指定路径初始化，name 可省略
-mai agent list
-mai agent add <name> [--heartbeat-minutes 30]
-
-### Status
-```
-mai status [--verbose]
-```
-
+1. Fork this project
+2. Create a feature branch `git checkout -b feature/AmazingFeature`
+3. Commit your changes `git commit -m 'feat: Add some AmazingFeature'`
+4. Push to the branch `git push origin feature/AmazingFeature`
+5. Open a Pull Request
 
 ---
 
-## Configuration
+## 📄 License
 
-Edit `.mai/config.json` in your project root:
-
-```json
-{
-  "queues": {
-    "questions": {
-      "handler": "alice",
-      "sla_minutes": 120,
-      "id_prefix": "REQ"
-    }
-  },
-  "agents": {
-    "alice": { "heartbeat_minutes": 30 }
-  },
-  "daily_summary_order": ["alice", "bob"]
-}
-```
-
-### Legacy field compatibility
-`owner` → `handler`, `sla_hours` → `sla_minutes` are automatically converted.
-
----
-
-## Supported Platforms
-
-- **OS**: Linux / macOS (POSIX required for `flock`)
-- **Python**: 3.8, 3.9, 3.10, 3.11, 3.12
-
----
-
-## License
-
-[![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-
-MIT License — see [LICENSE](LICENSE) for the full text.
+MIT License — see [LICENSE](LICENSE).
 
 ---
 
