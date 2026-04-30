@@ -76,7 +76,6 @@ mai init -o admin
 
 # 2. 注册 Agent
 mai agent add alice --heartbeat-minutes 30
-```
 
 # 3. 创建 Issue
 mai issue new questions "技术方案评审" -o alice

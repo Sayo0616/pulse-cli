@@ -76,9 +76,9 @@ mai init -o admin
 
 # 2. Register an agent
 mai agent add alice --heartbeat-minutes 30
-```
 
 # 3. Create an issue
+
 mai issue new questions "Technical review" -o alice
 
 # 4. Claim issue (auto-locks)
