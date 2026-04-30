@@ -66,3 +66,7 @@ htmlcov/
 # Local Development Files
 
 local
+
+# mai
+.mai/
+async/
