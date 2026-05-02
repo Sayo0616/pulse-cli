@@ -203,13 +203,21 @@ def parse_issue_file(path: Path) -> Dict[str, Any]:
     if timeline_match:
         tl_content = timeline_match.group(1).strip()
         # Find all <action ...>...</action> blocks
-        action_matches = re.finditer(r'<action\s+time="([^"]+)"\s+agent="([^"]+)"\s+action="([^"]+)">\s*(.*?)\s*</action>', tl_content, re.DOTALL)
+        action_matches = re.finditer(r'<action\s+([^>]+)>\s*(.*?)\s*</action>', tl_content, re.DOTALL)
         for m in action_matches:
+            attr_str = m.group(1)
+            remark = m.group(2).strip()
+            
+            # Use separate regex to find attributes (order independent)
+            time_m = re.search(r'time="([^"]+)"', attr_str)
+            agent_m = re.search(r'agent="([^"]+)"', attr_str)
+            action_m = re.search(r'action="([^"]+)"', attr_str)
+            
             data["timeline"].append({
-                "time": m.group(1),
-                "agent": m.group(2),
-                "action": m.group(3),
-                "remark": m.group(4).strip()
+                "time": time_m.group(1) if time_m else "",
+                "agent": agent_m.group(1) if agent_m else "",
+                "action": action_m.group(1) if action_m else "",
+                "remark": remark
             })
 
     # --- Fallback for old format (v1.x) ---
@@ -549,6 +557,10 @@ def cmd_issue_status(project_root: Path, issue_id: str) -> None:
     for entry in issue.get("timeline", []):
         if isinstance(entry, dict):
             out(f"  [{entry.get('time', '')}] @{entry.get('agent', '')}: {entry.get('action', '')}")
+            remark = entry.get("remark", "").strip()
+            if remark:
+                for rline in remark.splitlines():
+                    out(f"    {rline}")
         else:
             out(f"  {entry}")
 

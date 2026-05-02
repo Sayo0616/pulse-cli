@@ -50,9 +50,11 @@ Lock timeout threshold: {threshold:.1f} minutes
     for t in issue.get("timeline", []):
         if isinstance(t, dict):
             line = f"[{t.get('time', '')}] @{t.get('agent', '')}: {t.get('action', '')}"
-            if t.get("remark"):
-                line += f"：{t.get('remark', '')}"
             timeline_lines.append(f"- {line}")
+            remark = t.get("remark", "").strip()
+            if remark:
+                for rline in remark.splitlines():
+                    timeline_lines.append(f"    {rline}")
         else:
             timeline_lines.append(f"- {t}")
 
