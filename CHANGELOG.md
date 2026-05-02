@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.11.1 (2026-05-02)
+- **Feature: 支持从标准输入 (Stdin) 读取备注** — 解决了在使用 Heredoc（如 `<< 'EOF'`) 时无法将内容追加进工单的问题。现在 `issue amend`, `block`, `complete`, `reopen`, `reject`, `discard` 以及 `log write` 和 `daily-summary write` 等指令在缺失位置参数时，会自动尝试从 stdin 读取内容。
+- **UX: 优化指令交互** — 将上述指令的描述性参数（remark, reason, conclusion 等）设为可选，配合 stdin 支持，使自动化脚本和长文档提交更加便捷。
+
 ## v1.11.0 (2026-05-02)
 - **Refactor: 引入结构化 MDX 工单格式 (v2.0.0)** — 放弃了脆弱的行解析方式，改为使用 `<mai_meta>`, `<mai_desc>`, `<mai_context>`, `<mai_timeline>` 标签包裹数据。此举彻底解决了用户在备注中使用 Markdown 语法（如二级标题、列表等）导致解析混乱的问题。
 - **Feature: 自动平滑迁移** — 解析器现在支持识别旧版 v1.x 格式。所有旧工单在执行下一次写操作（如 `amend`, `claim`）时，会自动升级为新的结构化格式，无需人工干预。

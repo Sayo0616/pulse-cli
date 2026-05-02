@@ -1,6 +1,6 @@
 [project]
 name = "mai-cli"
-version = "1.11.0"
+version = "1.11.1"
 description = "Multi-Agent Collaboration CLI with flock-based locking and event-driven workflow"
 readme = "README.md"
 license = {text = "MIT"}
