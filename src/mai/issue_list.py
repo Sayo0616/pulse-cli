@@ -157,4 +157,7 @@ def cmd_issue_show(project_root: Path, issue_id: str):
         if issue.get("context"):
             out(f"\n## 关联上下文\n{issue['context']}")
         if issue.get("timeline"):
-            out(f"\n## 处理记录\n" + "\n".join(f"  {t}" for t in issue["timeline"]))
+            out("\n## 处理记录")
+            for t in issue["timeline"]:
+                t_indented = t.replace("\n", "\n  ")
+                out(f"  - {t_indented}")

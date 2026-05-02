@@ -61,7 +61,7 @@ mai issue amend <issue-id> <remark> -o <your-name>
 
 **认领后**：状态变为 **IN_PROGRESS**，你成为当前 Handler。
 
-> 处理完成后，**必须** 先追加完成信息，然后用 `issue transfer` 转给下一处理人或返回发起者审验。不得长时间持有锁。
+> 处理完成后，**必须** 先追加完成信息（包括产出的文档地址），然后用 `issue transfer` 转给下一处理人或返回发起者审验。不得长时间持有锁。
 
 ## 3. 转 Issue
 

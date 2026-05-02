@@ -229,12 +229,17 @@ def parse_issue_file(path: Path) -> Dict[str, Any]:
     for line in timeline_str.splitlines():
         if line.strip().startswith("- ["):
             if current_entry:
-                timeline.append("\n".join(current_entry))
-            current_entry = [line.strip("- ")]
-        elif line.strip() and current_entry:
-            current_entry.append(line.strip())
+                timeline.append("\n".join(current_entry).strip())
+            # Extract content after "- " without indiscriminate stripping
+            stripped = line.lstrip()
+            if stripped.startswith("- "):
+                current_entry = [stripped[2:]]
+            else:
+                current_entry = [stripped]
+        elif current_entry:
+            current_entry.append(line)
     if current_entry:
-        timeline.append("\n".join(current_entry))
+        timeline.append("\n".join(current_entry).strip())
     data["timeline"] = timeline
 
     return data
