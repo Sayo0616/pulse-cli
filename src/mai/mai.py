@@ -15,7 +15,7 @@ from importlib.metadata import version, PackageNotFoundError
 try:
     __version__ = version("mai-cli")
 except PackageNotFoundError:
-    __version__ = "1.11.0"
+    __version__ = "1.11.1"
 
 from .config import (
     get_mai_dir, get_async_dir, find_project_root,
@@ -133,7 +133,7 @@ def build_parser():
     p.add_argument("-o", "--operator", help="Operator name (required for write actions)")
 
     p = iss.add_parser("block", help="Block an issue")
-    p.add_argument("issue_id"); p.add_argument("reason")
+    p.add_argument("issue_id"); p.add_argument("reason", nargs="?", default="")
     p.add_argument("-o", "--operator", help="Operator name (required for write actions)")
 
     p = iss.add_parser("unblock", help="Unblock an issue")
@@ -141,11 +141,11 @@ def build_parser():
     p.add_argument("-o", "--operator", help="Operator name (required for write actions)")
 
     p = iss.add_parser("complete", help="Complete an issue")
-    p.add_argument("issue_id"); p.add_argument("conclusion")
+    p.add_argument("issue_id"); p.add_argument("conclusion", nargs="?", default="")
     p.add_argument("-o", "--operator", help="Operator name (required for write actions)")
 
     p = iss.add_parser("reopen", help="Reopen a completed issue")
-    p.add_argument("issue_id"); p.add_argument("reason")
+    p.add_argument("issue_id"); p.add_argument("reason", nargs="?", default="")
     p.add_argument("-o", "--operator", help="Operator name (required for write actions)")
 
     p = iss.add_parser("status", help="Show issue status history")
@@ -168,7 +168,7 @@ def build_parser():
     p.add_argument("-o", "--operator", help="Operator name (required for write actions)")
 
     p = iss.add_parser("reject", help="Reject and reopen issue (owner only)")
-    p.add_argument("issue_id"); p.add_argument("reason")
+    p.add_argument("issue_id"); p.add_argument("reason", nargs="?", default="")
     p.add_argument("-o", "--operator", help="Operator name (required for write actions)")
 
     p = iss.add_parser("show", help="Show issue")
@@ -179,7 +179,7 @@ def build_parser():
     p.add_argument("-o", "--operator", help="Operator name (required for write actions)")
 
     p = iss.add_parser("discard", help="Discard an issue (root/owner only)")
-    p.add_argument("issue_id"); p.add_argument("reason")
+    p.add_argument("issue_id"); p.add_argument("reason", nargs="?", default="")
     p.add_argument("-o", "--operator", help="Operator name (required for write actions)")
 
     # ── queue ──
@@ -214,7 +214,7 @@ def build_parser():
     p.add_argument("--date", dest="date", default=None)
     p.add_argument("--agent", dest="agent", default=None)
     p = lg.add_parser("write")
-    p.add_argument("agent"); p.add_argument("type"); p.add_argument("summary")
+    p.add_argument("agent"); p.add_argument("type"); p.add_argument("summary", nargs="?", default="")
     p.add_argument("--status", dest="status", default="")
 
     # ── daily-summary ──
@@ -227,7 +227,7 @@ def build_parser():
     p.add_argument("target", nargs="?", default=".") # <agent> / .
     p.add_argument("--all", dest="read_all", action="store_true")
     p = ds.add_parser("write")
-    p.add_argument("agent"); p.add_argument("content", nargs="+", default=[])
+    p.add_argument("agent"); p.add_argument("content", nargs="*", default=[])
 
     # ── escalation ──
     esc_sp = sub.add_parser("escalation")
@@ -445,6 +445,13 @@ def get_operator(args) -> str:
     return op
 
 
+def read_stdin_if_needed(val: str) -> str:
+    """Read from stdin if val is empty and stdin is not a TTY."""
+    if not val and not sys.stdin.isatty():
+        return sys.stdin.read().strip()
+    return val
+
+
 def dispatch_issue(args, project_root: Path) -> None:
     from .issue import (
         cmd_issue_new, cmd_issue_amend, cmd_issue_claim,
@@ -460,22 +467,32 @@ def dispatch_issue(args, project_root: Path) -> None:
         cmd_issue_new(project_root, args.queue, args.title, args.ref, getattr(args, "priority", "P2"), operator=op)
     elif args.issue_cmd == "amend":
         op = get_operator(args)
-        cmd_issue_amend(project_root, args.issue_id, args.remark, operator=op)
+        remark = read_stdin_if_needed(args.remark)
+        cmd_issue_amend(project_root, args.issue_id, remark, operator=op)
     elif args.issue_cmd == "claim":
         op = get_operator(args)
         cmd_issue_claim(project_root, args.issue_id, operator=op)
     elif args.issue_cmd == "block":
         op = get_operator(args)
-        cmd_issue_block(project_root, args.issue_id, args.reason, operator=op)
+        reason = read_stdin_if_needed(args.reason)
+        if not reason:
+            err("Reason is required for blocking.", 1, error="REASON_REQUIRED")
+        cmd_issue_block(project_root, args.issue_id, reason, operator=op)
     elif args.issue_cmd == "unblock":
         op = get_operator(args)
         cmd_issue_unblock(project_root, args.issue_id, operator=op)
     elif args.issue_cmd == "complete":
         op = get_operator(args)
-        cmd_issue_complete(project_root, args.issue_id, args.conclusion, operator=op)
+        conclusion = read_stdin_if_needed(args.conclusion)
+        if not conclusion:
+            err("Conclusion is required for completion.", 1, error="CONCLUSION_REQUIRED")
+        cmd_issue_complete(project_root, args.issue_id, conclusion, operator=op)
     elif args.issue_cmd == "reopen":
         op = get_operator(args)
-        cmd_issue_reopen(project_root, args.issue_id, args.reason, operator=op)
+        reason = read_stdin_if_needed(args.reason)
+        if not reason:
+            err("Reason is required for reopening.", 1, error="REASON_REQUIRED")
+        cmd_issue_reopen(project_root, args.issue_id, reason, operator=op)
     elif args.issue_cmd == "status":
         cmd_issue_status(project_root, args.issue_id)
     elif args.issue_cmd == "list":
@@ -490,7 +507,10 @@ def dispatch_issue(args, project_root: Path) -> None:
         cmd_issue_confirm(project_root, args.issue_id, operator=op)
     elif args.issue_cmd == "reject":
         op = get_operator(args)
-        cmd_issue_reject(project_root, args.issue_id, args.reason, operator=op)
+        reason = read_stdin_if_needed(args.reason)
+        if not reason:
+            err("Reason is required for rejection.", 1, error="REASON_REQUIRED")
+        cmd_issue_reject(project_root, args.issue_id, reason, operator=op)
     elif args.issue_cmd == "show":
         cmd_issue_show(project_root, args.issue_id)
     elif args.issue_cmd == "escalate":
@@ -499,7 +519,10 @@ def dispatch_issue(args, project_root: Path) -> None:
         cmd_issue_escalate(project_root, args.issue_id, operator=op)
     elif args.issue_cmd == "discard":
         op = get_operator(args)
-        cmd_issue_discard(project_root, args.issue_id, args.reason, operator=op)
+        reason = read_stdin_if_needed(args.reason)
+        if not reason:
+            err("Reason is required for discarding.", 1, error="REASON_REQUIRED")
+        cmd_issue_discard(project_root, args.issue_id, reason, operator=op)
 
 
 def dispatch_project(args) -> None:
@@ -560,7 +583,10 @@ def dispatch_log(args, project_root: Path) -> None:
     if args.log_cmd == "history":
         cmd_log_history(project_root, args.date, args.agent)
     elif args.log_cmd == "write":
-        cmd_log_write(project_root, args.agent, args.type, args.summary, args.status)
+        summary = read_stdin_if_needed(args.summary)
+        if not summary:
+            err("Summary is required for log entry.", 1, error="SUMMARY_REQUIRED")
+        cmd_log_write(project_root, args.agent, args.type, summary, args.status)
     elif args.log_cmd == "undo":
         cmd_log_undo(project_root)
 
@@ -573,7 +599,11 @@ def dispatch_daily_summary(args, project_root: Path) -> None:
     if args.ds_cmd == "trigger":
         daily_summary_trigger(project_root)
     elif args.ds_cmd == "write":
-        daily_summary_write(project_root, args.agent, args.content)
+        content = " ".join(args.content)
+        content = read_stdin_if_needed(content)
+        if not content:
+            err("Content is required for daily summary.", 1, error="CONTENT_REQUIRED")
+        daily_summary_write(project_root, args.agent, content)
     elif args.ds_cmd == "read":
         daily_summary_read(project_root, args.target, args.read_all)
     elif args.ds_cmd == "status":
