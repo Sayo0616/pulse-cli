@@ -59,11 +59,13 @@ def test_emoji_overdue_logic():
         old_time = (datetime.now() - timedelta(hours=2)).isoformat()
         f = root / ".mai" / "queues" / "questions" / "REQ-001.md"
         f.write_text(f"""# [REQ-001] Old Issue
-**发起方：** @alice
-**处理方：** @alice
-**创建时间：** {old_time}
-**状态：** ⭕ OPEN
-**队列：** questions
+<mai_meta>
+id: REQ-001
+status: OPEN
+created: {old_time}
+queue: questions
+owner: alice
+</mai_meta>
 """, encoding="utf-8")
         
         issues = list_issues_in_queue(root, "questions")
@@ -81,14 +83,10 @@ def test_emoji_parsing_robustness():
     with tempfile.TemporaryDirectory() as tmpdir:
         f = Path(tmpdir) / "test.md"
         
-        # Case 1: Icon + Space + Status
-        f.write_text("**状态：** ⭕ OPEN", encoding="utf-8")
+        # Case 1: Standard meta
+        f.write_text("<mai_meta>\nstatus: OPEN\n</mai_meta>", encoding="utf-8")
         assert parse_issue_file(f)["status"] == "OPEN"
         
-        # Case 2: Status only (No icon)
-        f.write_text("**状态：** IN_PROGRESS", encoding="utf-8")
+        # Case 2: Multi-line meta
+        f.write_text("<mai_meta>\nid: X\nstatus: IN_PROGRESS\n</mai_meta>", encoding="utf-8")
         assert parse_issue_file(f)["status"] == "IN_PROGRESS"
-        
-        # Case 3: Weird icons
-        f.write_text("**状态：** 🚀 BLASTOFF", encoding="utf-8")
-        assert parse_issue_file(f)["status"] == "BLASTOFF"

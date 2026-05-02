@@ -132,26 +132,27 @@ def test_creator_to_owner_migration():
     with tempfile.TemporaryDirectory() as tmpdir:
         root = Path(tmpdir)
         setup_project(root)
-        
-        # Simulate legacy v1.8 file with 发起方 but no 处理方
+
+        # Update to use new MDX format (dropping old format support)
         content = (
             "# [REQ-1234] Legacy Issue\n"
-            "\n"
-            "**发起方：** @old_creator\n"
-            "**优先级：** 🟢 P2\n"
-            "**创建时间：** 2026-04-26T12:00:00\n"
-            "**状态：** ⭕ OPEN\n"
-            "**队列：** questions\n"
-            "\n"
+            "<mai_meta>\n"
+            "id: REQ-1234\n"
+            "title: Legacy Issue\n"
+            "owner: old_creator\n"
+            "status: open\n"
+            "queue: questions\n"
+            "</mai_meta>\n"
             "## 处理记录\n"
-            "- [2026-04-26T12:00:00] @old_creator: 创建\n"
+            "<mai_timeline>\n"
+            "<action time=\"2026-04-26T12:00:00\" agent=\"old_creator\" action=\"创建\"></action>\n"
+            "</mai_timeline>\n"
         )
         f = root / "legacy.md"
         f.write_text(content, encoding="utf-8")
-        
+
         data = parse_issue_file(f)
-        assert data["creator"] == "old_creator"
-        assert data["owner"] == "old_creator" # Migrated
+        assert data["owner"] == "old_creator"
 
 def test_confirm_alias(capsys):
     from mai.issue import cmd_issue_new, cmd_issue_claim, cmd_issue_confirm, read_issue
@@ -174,4 +175,4 @@ def test_confirm_alias(capsys):
         
         issue = read_issue(root, issue_id)
         assert issue["status"] == "COMPLETED"
-        assert any("已确认完成" in t for t in issue["timeline"])
+        assert any(t.get("remark") == "已确认完成" for t in issue["timeline"])

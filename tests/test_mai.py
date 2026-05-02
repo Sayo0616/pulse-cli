@@ -89,7 +89,9 @@ def test_make_issue_content():
         project_root=None,
     )
     assert "# [REQ-001] Test issue" in content
-    assert "**队列：** questions" in content
+    assert "<mai_meta>" in content
+    assert "queue: questions" in content
+    assert "<mai_desc>" in content
     assert "## 问题描述" in content
 
 def test_parse_issue_file():
@@ -100,21 +102,27 @@ def test_parse_issue_file():
         f = Path(tmpdir) / "REQ-001.md"
         f.write_text(
             "# [REQ-001] Test\n\n"
-            "**发起方：** @alice\n"
-            "**处理方：** @bob\n"
-            "**创建时间：** 2026-04-19T10:00:00\n"
-            "**状态：** 🔓 open\n"
-            "**队列：** questions\n\n"
+            "<mai_meta>\n"
+            "id: REQ-001\n"
+            "title: Test\n"
+            "owner: bob\n"
+            "status: open\n"
+            "queue: questions\n"
+            "created: 2026-04-19T10:00:00\n"
+            "</mai_meta>\n\n"
+            "**处理方：** @bob | **状态：** 🔓 OPEN\n\n"
             "---\n\n"
-            "## 问题描述\n\nTest description.\n\n"
+            "## 问题描述\n<mai_desc>\nTest description.\n</mai_desc>\n"
+            "## 处理记录\n<mai_timeline>\n<action time=\"2026-04-19T10:00:00\" agent=\"alice\" action=\"创建\">\nInitial record\n</action>\n</mai_timeline>\n"
         , encoding="utf-8")
         data = parse_issue_file(f)
         assert data["id"] == "REQ-001"
         assert data["title"] == "Test"
-        assert data["creator"] == "alice"
-        assert data["owner"] == "bob"
+        assert data.get("owner") == "bob"
         assert data["status"] == "open"
         assert data["queue"] == "questions"
+        assert data["timeline"][0]["agent"] == "alice"
+        assert data["timeline"][0]["remark"] == "Initial record"
 
         assert "Test description" in data["description"]
 

@@ -25,8 +25,7 @@ def test_issue_new_with_operator_override():
         assert len(files) == 1
         
         data = parse_issue_file(files[0])
-        assert any("@human_sayo: 创建" in t for t in data["timeline"])
-
+        assert any(t.get("action") == "创建" and t.get("agent") == "human_sayo" for t in data["timeline"])
 def test_issue_new_default_operator(monkeypatch):
     """Verify that MAI_AGENT is used if no operator is provided (backward compatibility / fallback)."""
     # Mock environment variable
@@ -49,4 +48,4 @@ def test_issue_new_default_operator(monkeypatch):
         assert len(files) == 1
         
         data = parse_issue_file(files[0])
-        assert any("@auto_coder: 创建" in t for t in data["timeline"])
+        assert any(t.get("action") == "创建" and t.get("agent") == "auto_coder" for t in data["timeline"])

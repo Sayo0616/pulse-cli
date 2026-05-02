@@ -3,6 +3,7 @@
 """
 
 from pathlib import Path
+from datetime import datetime
 
 from .config import get_heartbeat_intervals
 from .issue import read_issue
@@ -43,8 +44,19 @@ Lock timeout threshold: {threshold:.1f} minutes
 {issue.get('description', issue.get('title', ''))}
 
 ## 处理记录
+"""
 
-""" + "\n".join(f"- {t}" for t in issue.get("timeline", []))
+    timeline_lines = []
+    for t in issue.get("timeline", []):
+        if isinstance(t, dict):
+            line = f"[{t.get('time', '')}] @{t.get('agent', '')}: {t.get('action', '')}"
+            if t.get("remark"):
+                line += f"：{t.get('remark', '')}"
+            timeline_lines.append(f"- {line}")
+        else:
+            timeline_lines.append(f"- {t}")
+
+    template += "\n".join(timeline_lines)
 
     template += """
 
@@ -53,7 +65,7 @@ Lock timeout threshold: {threshold:.1f} minutes
 - [A] <选项描述>
 - [B] <选项描述>
 
-**请用户 (Sayo) 裁决：** [A] / [B]
+**请用户 (Sayo) 裁决:** [A] / [B]
 """
 
     if GLOBAL.format == "json":

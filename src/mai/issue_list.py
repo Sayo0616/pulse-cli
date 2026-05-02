@@ -158,6 +158,8 @@ def cmd_issue_show(project_root: Path, issue_id: str):
             out(f"\n## 关联上下文\n{issue['context']}")
         if issue.get("timeline"):
             out("\n## 处理记录")
-            for t in issue["timeline"]:
-                t_indented = t.replace("\n", "\n  ")
-                out(f"  - {t_indented}")
+            for entry in issue["timeline"]:
+                out(f"  - [{entry['time']}] @{entry['agent']} ({entry['action']}):")
+                if entry.get("remark"):
+                    for line in entry["remark"].strip().splitlines():
+                        out(f"    {line}")

@@ -67,13 +67,13 @@ def make_issue_content(
     owner: str = "",
     ref: str = "",
     description: str = "",
-    timeline: Optional[List[str]] = None,
+    timeline: Optional[List[Dict[str, str]]] = None,
     escalated_blocker_id: str = "",
     project_root: Optional[Path] = None,
     priority: str = "P2",
     operator: str = "unknown",
 ) -> str:
-    """Build a spec-compliant issue markdown file (v1.9.2)."""
+    """Build a spec-compliant issue markdown file (v2.0.0) with structured MDX tags."""
     now = datetime.now().isoformat()
     from .config import DEFAULT_EMOJI
     if project_root:
@@ -96,44 +96,56 @@ def make_issue_content(
 
     owner_field = owner or owner_sla
 
-    lines = [
-        f"# [{issue_id}] {title}",
-        "",
-        f"**处理方：** @{owner_field}",
-        f"**优先级：** {priority_field}",
-        f"**创建时间：** {now}",
-        f"**状态：** {emoji} {status}",
-        f"**SLA 截止：** {sla_deadline}",
-        f"**队列：** {queue}",
-    ]
-    if ref:
-        lines.append(f"**关联 Issue：** [{ref}](#)")
-    if escalated_blocker_id:
-        lines.append(f"** escalated_blocker_id：** {escalated_blocker_id}")
-    lines.extend(["", "---", ""])
-
-    lines.extend(["## 问题描述", "", description or title, ""])
-    lines.extend(["## 关联上下文", ""])
-    if ref:
-        lines.append(f"- 关联 Issue：{ref}")
-    lines.extend(["", "## 处理记录", ""])
-    
-    timeline = timeline or []
-    # Add initial creation entry if timeline is empty
+    # Timeline structure: List[Dict[str, str]] with keys: time, agent, action, remark
     if not timeline:
-        timeline.append(f"[{now}] @{operator}: 创建")
+        timeline = [{"time": now, "agent": operator, "action": "创建", "remark": ""}]
 
+    timeline_xml = ["<mai_timeline>"]
     for entry in timeline:
-        if entry.startswith("- "):
-            lines.append(entry)
-        else:
-            lines.append(f"- {entry}")
+        remark = entry.get("remark", "").strip()
+        timeline_xml.append(f'<action time="{entry["time"]}" agent="{entry["agent"]}" action="{entry["action"]}">')
+        if remark:
+            timeline_xml.append(remark)
+        timeline_xml.append("</action>")
+    timeline_xml.append("</mai_timeline>")
 
-    return "\n".join(lines)
+    content = f"""# [{issue_id}] {title}
+
+<mai_meta>
+id: {issue_id}
+title: {title}
+status: {status}
+priority: {priority}
+owner: {owner_field}
+queue: {queue}
+created: {now}
+sla_deadline: {sla_deadline}
+ref: {ref}
+escalated_blocker_id: {escalated_blocker_id}
+</mai_meta>
+
+**处理方：** @{owner_field} | **优先级：** {priority_field} | **状态：** {emoji} {status.upper()}
+
+---
+
+## 问题描述
+<mai_desc>
+{description or title}
+</mai_desc>
+
+## 关联上下文
+<mai_context>
+{f"- 关联 Issue：{ref}" if ref else ""}
+</mai_context>
+
+## 处理记录
+{"".join(timeline_xml)}
+"""
+    return content
 
 
 def parse_issue_file(path: Path) -> Dict[str, Any]:
-    """Parse spec-format issue markdown file."""
+    """Parse structured MDX issue markdown file."""
     content = path.read_text("utf-8", errors="replace")
     data = {
         "path":               str(path),
@@ -144,7 +156,6 @@ def parse_issue_file(path: Path) -> Dict[str, Any]:
         "status":             "open",
         "priority":           "P2",
         "owner":              "",
-        "creator":            "",
         "ref":                "",
         "escalated_blocker_id": "",
         "created":            "",
@@ -154,93 +165,104 @@ def parse_issue_file(path: Path) -> Dict[str, Any]:
         "timeline":           [],
     }
 
-    lines = content.splitlines()
-    if not lines:
-        return data
+    # 1. Parse Meta
+    meta_match = re.search(r"<mai_meta>(.*?)</mai_meta>", content, re.DOTALL)
+    if meta_match:
+        meta_content = meta_match.group(1).strip()
+        for line in meta_content.splitlines():
+            if ":" in line:
+                k, v = line.split(":", 1)
+                key_map = {
+                    "id": "id",
+                    "title": "title",
+                    "status": "status",
+                    "priority": "priority",
+                    "owner": "owner",
+                    "queue": "queue",
+                    "created": "created",
+                    "sla_deadline": "sla_deadline",
+                    "ref": "ref",
+                    "escalated_blocker_id": "escalated_blocker_id"
+                }
+                k_clean = k.strip()
+                if k_clean in key_map:
+                    data[key_map[k_clean]] = v.strip()
 
-    first_line = lines[0]
-    m = re.match(r"#\s+\[([^\]]+)\]\s+(.+)", first_line)
-    if m:
-        data["id"] = m.group(1)
-        data["title"] = m.group(2).strip()
+    # 2. Parse Description
+    desc_match = re.search(r"<mai_desc>(.*?)</mai_desc>", content, re.DOTALL)
+    if desc_match:
+        data["description"] = desc_match.group(1).strip()
 
-    for line in lines:
-        m = re.match(r"\*\*([^：]+)：\*\*\s*(.+)", line)
-        if m:
-            key, val = m.group(1).strip(), m.group(2).strip()
-            # Clean @ prefix if exists
-            if val.startswith("@"):
-                val = val[1:]
+    # 3. Parse Context
+    ctx_match = re.search(r"<mai_context>(.*?)</mai_context>", content, re.DOTALL)
+    if ctx_match:
+        data["context"] = ctx_match.group(1).strip()
 
-            key_map = {
-                "发起方":            "creator",
-                "处理方":            "owner",
-                "优先级":            "priority",
-                "创建时间":          "created",
-                "状态":              "status",
-                "SLA 截止":          "sla_deadline",
-                "队列":              "queue",
-                "关联 Issue":        "ref",
-                "escalated_blocker_id": "escalated_blocker_id",
-            }
-            if key in key_map:
-                data[key_map[key]] = val
-            if key == "状态":
-                # Extract text after emoji if present. E.g. "⭕ OPEN" -> "OPEN"
-                parts = val.split(maxsplit=1)
-                data["status"] = parts[1] if len(parts) > 1 else parts[0]
-            if key == "优先级":
-                # Extract text after emoji if present. E.g. "🔴 P0" -> "P0"
-                parts = val.split(maxsplit=1)
-                data["priority"] = parts[1] if len(parts) > 1 else parts[0]
+    # 4. Parse Timeline
+    timeline_match = re.search(r"<mai_timeline>(.*?)</mai_timeline>", content, re.DOTALL)
+    if timeline_match:
+        tl_content = timeline_match.group(1).strip()
+        # Find all <action ...>...</action> blocks
+        action_matches = re.finditer(r'<action\s+time="([^"]+)"\s+agent="([^"]+)"\s+action="([^"]+)">\s*(.*?)\s*</action>', tl_content, re.DOTALL)
+        for m in action_matches:
+            data["timeline"].append({
+                "time": m.group(1),
+                "agent": m.group(2),
+                "action": m.group(3),
+                "remark": m.group(4).strip()
+            })
 
-    # REQ-D Migration: creator -> owner if owner is empty or if creator is present
-    # In v1.9.0, we prioritize 'owner' (处理方).
-    if data.get("creator") and not data.get("owner"):
-        data["owner"] = data["creator"]
-        # Note: We don't write back here, but we might want to log it if we were in a command.
-        # Since parse_issue_file is low-level, we just ensure data consistency.
-    
-    # Creator is no longer a separate concept, but we keep it in the dict for now 
-    # to avoid breaking other parts of code until fully refactored.
-    # But we should ensure 'owner' is what's used.
+    # --- Fallback for old format (v1.x) ---
+    if not meta_match:
+        lines = content.splitlines()
+        if lines:
+            # Parse ID and Title from first line: # [ID] Title
+            m = re.match(r"#\s+\[([^\]]+)\]\s+(.+)", lines[0])
+            if m:
+                data["id"] = m.group(1)
+                data["title"] = m.group(2).strip()
+            
+            # Parse meta lines: **Key：** Value
+            for line in lines:
+                m = re.match(r"\*\*([^：]+)：\*\*\s*(.+)", line)
+                if m:
+                    key, val = m.group(1).strip(), m.group(2).strip()
+                    if val.startswith("@"): val = val[1:]
+                    
+                    key_map = {
+                        "处理方": "owner", "优先级": "priority", "创建时间": "created",
+                        "状态": "status", "SLA 截止": "sla_deadline", "队列": "queue", "关联 Issue": "ref"
+                    }
+                    if key in key_map:
+                        data[key_map[key]] = val
+                    if key == "状态":
+                        parts = val.split(maxsplit=1)
+                        data["status"] = (parts[1] if len(parts) > 1 else parts[0]).upper()
+                    if key == "优先级":
+                        parts = val.split(maxsplit=1)
+                        data["priority"] = parts[1] if len(parts) > 1 else parts[0]
 
-    sections = {}
-    current = None
-    body_lines = []
-    for line in lines[1:]:
-        sm = re.match(r"##\s+(.+)", line)
-        if sm:
-            if current:
-                sections[current] = "\n".join(body_lines).strip()
-            current = sm.group(1).strip()
-            body_lines = []
-        else:
-            body_lines.append(line)
-    if current:
-        sections[current] = "\n".join(body_lines).strip()
+            # Parse Description (everything between ## 问题描述 and next ## or end)
+            desc_part = re.search(r"## 问题描述\s+(.*?)(?=\n##|$)", content, re.DOTALL)
+            if desc_part: data["description"] = desc_part.group(1).strip()
+            
+            # Parse Context
+            ctx_part = re.search(r"## 关联上下文\s+(.*?)(?=\n##|$)", content, re.DOTALL)
+            if ctx_part: data["context"] = ctx_part.group(1).strip()
 
-    data["description"] = sections.get("问题描述", "")
-    data["context"] = sections.get("关联上下文", "")
-    timeline_str = sections.get("处理记录", "")
-    
-    timeline = []
-    current_entry = []
-    for line in timeline_str.splitlines():
-        if line.strip().startswith("- ["):
-            if current_entry:
-                timeline.append("\n".join(current_entry).strip())
-            # Extract content after "- " without indiscriminate stripping
-            stripped = line.lstrip()
-            if stripped.startswith("- "):
-                current_entry = [stripped[2:]]
-            else:
-                current_entry = [stripped]
-        elif current_entry:
-            current_entry.append(line)
-    if current_entry:
-        timeline.append("\n".join(current_entry).strip())
-    data["timeline"] = timeline
+            # Parse Timeline (Old style list)
+            tl_part = re.search(r"## 处理记录\s+(.*)", content, re.DOTALL)
+            if tl_part:
+                for line in tl_part.group(1).splitlines():
+                    tm = re.match(r"^\s*-\s*\[([^\]]+)\]\s+@([^:]+):\s*(.*)", line)
+                    if tm:
+                        data["timeline"].append({
+                            "time": tm.group(1),
+                            "agent": tm.group(2).strip(),
+                            "action": tm.group(3).strip().split("：", 1)[0],
+                            "remark": tm.group(3).strip().split("：", 1)[1] if "：" in tm.group(3) else ""
+                        })
+    # --------------------------------------
 
     return data
 
@@ -268,36 +290,72 @@ def issue_file_path(project_root: Path, queue: str, issue_id: str) -> Path:
 
 
 def _update_issue_file(project_root: Path, data: Dict[str, Any], status: str, remark: Optional[str] = None, new_owner: Optional[str] = None, operator: Optional[str] = None):
-    """Helper to update issue file status, timeline and optionally owner."""
+    """Helper to update issue file status, timeline and optionally owner (v2.0.0)."""
     if GLOBAL.dry_run:
         return
 
     now = datetime.now().isoformat()
     agent = operator or os.environ.get("MAI_AGENT", os.environ.get("AGENT_NAME", "unknown"))
+    if agent.startswith("@"):
+        agent = agent[1:]
     emoji = get_status_emoji(project_root).get(status.lower(), "❓")
 
     fpath = Path(data["path"])
     content = fpath.read_text("utf-8")
 
-    # Update status
-    content = re.sub(r"^\s*\*\*状态[：:].*", f"**状态：** {emoji} {status}", content, flags=re.MULTILINE)
+    # --- Migration: If old format, re-write as new format ---
+    if "<mai_meta>" not in content:
+        # data already contains parsed info from parse_issue_file (via read_issue)
+        # We need to make sure we use the most recent status and remark
+        # First, ensure timeline is updated in data dict
+        if "timeline" not in data:
+            data["timeline"] = []
+        
+        if remark:
+            data["timeline"].append({"time": now, "agent": agent, "action": status.upper(), "remark": remark})
+        else:
+            data["timeline"].append({"time": now, "agent": agent, "action": status.upper(), "remark": ""})
+        
+        # Build new content
+        new_content = make_issue_content(
+            issue_id=data["id"],
+            queue=data.get("queue", "unknown"),
+            title=data.get("title", "Untitled"),            status=status,
+            owner=new_owner or data.get("owner", ""),
+            ref=data.get("ref", ""),
+            description=data.get("description", ""),
+            timeline=data["timeline"],
+            escalated_blocker_id=data.get("escalated_blocker_id", ""),
+            project_root=project_root,
+            priority=data.get("priority", "P2"),
+            operator=agent
+        )
+        fpath.write_text(new_content, encoding="utf-8")
+        sync_to_async(fpath, project_root)
+        write_history(project_root, agent, f"issue_{status.lower()}",
+                    f"Issue {data['id']} status changed to {status} (migrated to v2)", status.lower())
+        return
+    # -----------------------------------------------------
 
-    # Update owner if provided
+    # 1. Update status in meta
+    content = re.sub(r"(<mai_meta>.*?status:)\s*[^\n]+", r"\1 " + status, content, flags=re.DOTALL)
+    # 2. Update owner in meta if provided
     if new_owner is not None:
         if new_owner.startswith("@"):
             new_owner = new_owner[1:]
-        content = re.sub(r"^\s*\*\*处理方[：:].*", f"**处理方：** @{new_owner}", content, flags=re.MULTILINE)
+        content = re.sub(r"(<mai_meta>.*?owner:)\s*[^\n]+", r"\1 " + new_owner, content, flags=re.DOTALL)
 
-    # Update timeline
-    timeline_entry = f"[{now}] @{agent}: {status}"
-    if remark:
-        timeline_entry += f"：{remark}"
+    # 3. Update human-readable status line
+    content = re.sub(r"\*\*状态：\*\*\s*[^\n]+", f"**状态：** {emoji} {status.upper()}", content)
+    if new_owner is not None:
+        content = re.sub(r"\*\*处理方：\*\*\s*[^\n]+", f"**处理方：** @{new_owner}", content)
 
-    content = re.sub(
-        r"## 处理记录",
-        f"## 处理记录\n- {timeline_entry}",
-        content
-    )
+    # 4. Append to timeline
+    remark_text = f"\n{remark.strip()}\n" if remark and remark.strip() else ""
+    new_action = f'<action time="{now}" agent="{agent}" action="{status.upper()}">{remark_text}</action>'
+    
+    # Inject before </mai_timeline>
+    content = re.sub(r"(</mai_timeline>)", f"{new_action}\n\\1", content)
 
     fpath.write_text(content, encoding="utf-8")
     sync_to_async(fpath, project_root)
@@ -456,7 +514,7 @@ def cmd_issue_complete(project_root: Path, issue_id: str, conclusion: str, opera
             dec_file.write_text(f"# 结论 - Issue {issue_id}\n{complete_entry}")
         sync_to_async(dec_file, project_root)
 
-        _update_issue_file(project_root, issue, "COMPLETED", remark=f"完成：{conclusion}", operator=agent)
+        _update_issue_file(project_root, issue, "COMPLETED", remark=conclusion or "已确认完成", operator=agent)
 
     out(f"Issue {issue_id} completed.", command="issue complete", issue_id=issue_id, dry_run=GLOBAL.dry_run)
 
@@ -481,7 +539,7 @@ def cmd_issue_reopen(project_root: Path, issue_id: str, reason: str, operator: O
 
 
 def cmd_issue_status(project_root: Path, issue_id: str) -> None:
-    """REQ-008: Show issue status history."""
+    """REQ-008: Show issue status history (v2.0.0)."""
     from .mai import out, err
     issue = read_issue(project_root, issue_id)
     if not issue:
@@ -489,7 +547,10 @@ def cmd_issue_status(project_root: Path, issue_id: str) -> None:
 
     out(f"Status History for {issue_id}:")
     for entry in issue.get("timeline", []):
-        out(f"  {entry}")
+        if isinstance(entry, dict):
+            out(f"  [{entry.get('time', '')}] @{entry.get('agent', '')}: {entry.get('action', '')}")
+        else:
+            out(f"  {entry}")
 
 
 def cmd_issue_amend(project_root: Path, issue_id: str, remark: str, operator: Optional[str] = None) -> None:
@@ -612,10 +673,9 @@ def cmd_issue_reject(project_root: Path, issue_id: str, reason: str, operator: O
     
     timeline = issue.get("timeline", [])
     for entry in reversed(timeline):
-        m = re.match(r"^\[.*?\]\s+@([^:]+):", entry)
-        if m:
-            entry_agent = m.group(1).strip()
-            if entry_agent != agent:
+        if isinstance(entry, dict):
+            entry_agent = entry.get("agent", "").strip()
+            if entry_agent and entry_agent != agent:
                 previous_owner = entry_agent
                 break
 
